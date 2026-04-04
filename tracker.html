@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Expense Tracker</title>
+    <style>
+        body { font-family: sans-serif; background: #f0f2f5; padding: 15px; display: flex; justify-content: center; }
+        .container { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        .box { padding: 15px; border-radius: 10px; margin-bottom: 10px; color: white; text-align: center; }
+        .needs-box { background: #27ae60; }
+        .wants-box { background: #f39c12; }
+        .amount { font-size: 1.8em; font-weight: bold; }
+        input, select, button { width: 100%; padding: 12px; margin-top: 8px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; }
+        button { background: #2980b9; color: white; border: none; font-weight: bold; cursor: pointer; }
+        .history { margin-top: 20px; max-height: 200px; overflow-y: auto; border-top: 1px solid #eee; padding-top: 10px; }
+        .history-item { display: flex; justify-content: space-between; font-size: 0.85em; padding: 5px 0; border-bottom: 1px solid #fafafa; }
+        .red { color: #e74c3c; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="box needs-box">
+        <div style="font-size: 0.9em;">Needs Left</div>
+        <div class="amount" id="needsDisplay">₹6,000</div>
+    </div>
+    <div class="box wants-box">
+        <div style="font-size: 0.9em;">Wants Left</div>
+        <div class="amount" id="wantsDisplay">₹7,150</div>
+    </div>
+
+    <input type="text" id="desc" placeholder="What did you buy? (e.g. Coffee)">
+    <input type="number" id="amt" placeholder="Amount" inputmode="decimal">
+    <select id="cat">
+        <option value="needs">Daily Need</option>
+        <option value="wants">Want / Lifestyle</option>
+    </select>
+    <button onclick="addEntry()">Add Transaction</button>
+
+    <div class="history" id="historyList">
+        <strong>Recent History:</strong>
+    </div>
+    
+    <button style="background:#95a5a6; margin-top:20px; font-size:0.7em;" onclick="clearAll()">Reset Month</button>
+</div>
+
+<script>
+    let needs = parseFloat(localStorage.getItem('needs')) ?? 6000;
+    let wants = parseFloat(localStorage.getItem('wants')) ?? 7150;
+    let history = JSON.parse(localStorage.getItem('history')) || [];
+
+    function update() {
+        document.getElementById('needsDisplay').innerText = '₹' + needs.toLocaleString();
+        document.getElementById('wantsDisplay').innerText = '₹' + wants.toLocaleString();
+        localStorage.setItem('needs', needs);
+        localStorage.setItem('wants', wants);
+        localStorage.setItem('history', JSON.stringify(history));
+        
+        const list = document.getElementById('historyList');
+        list.innerHTML = '<strong>Recent History:</strong>';
+        history.slice().reverse().forEach(item => {
+            list.innerHTML += `<div class="history-item"><span>${item.name}</span><span class="red">-₹${item.val}</span></div>`;
+        });
+    }
+
+    function addEntry() {
+        const name = document.getElementById('desc').value || "Expense";
+        const val = parseFloat(document.getElementById('amt').value);
+        const cat = document.getElementById('cat').value;
+
+        if (isNaN(val) || val <= 0) return;
+
+        if (cat === 'needs') { needs -= val; } 
+        else { wants -= val; }
+
+        history.push({name, val, cat});
+        if (history.length > 20) history.shift(); // Keep only last 20 items
+
+        document.getElementById('desc').value = '';
+        document.getElementById('amt').value = '';
+        update();
+    }
+
+    function clearAll() {
+        if(confirm("Clear everything for the new month?")) {
+            needs = 6000; wants = 7150; history = [];
+            update();
+        }
+    }
+
+    update();
+</script>
+
+</body>
+</html>
