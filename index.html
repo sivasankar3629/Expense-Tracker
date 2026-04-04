@@ -228,6 +228,7 @@
         </div>
         <div class="btn-row">
             <button id="sync-btn" class="mode-btn" onclick="handleAuthClick()" style="opacity:0.5;"><i class="fa-solid fa-cloud"></i> Sync</button>
+            <button id="logout-btn" class="mode-btn" onclick="disconnectDrive()" style="display:none; color:var(--danger); border-color:var(--danger);" title="Disconnect Google Drive"><i class="fa-solid fa-right-from-bracket"></i></button>
             <button class="mode-btn" onclick="toggleDark()"><i class="fa-solid fa-circle-half-stroke"></i></button>
         </div>
     </div>
@@ -256,12 +257,6 @@
         <button class="main-btn" style="background:var(--accent2);" onclick="addNewCategory()">Create Category</button>
         <div class="divider"></div>
         <button class="main-btn reset-btn" onclick="manualReset()"><i class="fa-solid fa-rotate-left"></i> Force Manual Reset</button>
-        <div class="divider"></div>
-        <div id="drive-account-section" style="display:none;">
-            <span class="sect-label">Google Drive Account</span>
-            <div id="drive-account-info" style="font-size:0.78rem;color:var(--sub);margin-bottom:10px;font-weight:600;"></div>
-            <button class="main-btn" style="background:rgba(192,57,43,0.12);color:var(--danger);border:1px solid rgba(192,57,43,0.2);box-shadow:none;" onclick="disconnectDrive()"><i class="fa-solid fa-right-from-bracket"></i> Disconnect & Sign Out</button>
-        </div>
     </div>
 </div>
 
@@ -297,21 +292,20 @@
     function setSyncStatus(status, email) {
         // status: 'disconnected' | 'connected' | 'syncing' | 'error'
         const btn = document.getElementById('sync-btn');
-        const accountSection = document.getElementById('drive-account-section');
         btn.classList.remove('connected','syncing','error');
         if (status === 'disconnected') {
             btn.innerHTML = '<i class="fa-solid fa-cloud"></i> Sync';
             btn.style.opacity = gapiInited && gsiInited ? '1' : '0.5';
-            if (accountSection) accountSection.style.display = 'none';
+            const logoutBtn = document.getElementById('logout-btn');
+            if (logoutBtn) logoutBtn.style.display = 'none';
         } else if (status === 'connected') {
             btn.classList.add('connected');
             btn.innerHTML = '<i class="fa-solid fa-cloud-check"></i> Synced';
             btn.style.opacity = '1';
-            if (accountSection) {
-                accountSection.style.display = 'block';
-                const info = document.getElementById('drive-account-info');
-                if (info && email) info.textContent = '✓ Connected as ' + email;
-                else if (info) info.textContent = '✓ Connected to Google Drive';
+            const logoutBtn = document.getElementById('logout-btn');
+            if (logoutBtn) {
+                logoutBtn.style.display = '';
+                if (email) logoutBtn.title = 'Signed in as ' + email + ' — click to disconnect';
             }
         } else if (status === 'syncing') {
             btn.classList.add('syncing');
@@ -370,24 +364,22 @@
             callback: async (resp) => {
                 if (resp.error || !resp.access_token) return; // silent fail
                 gapi.client.setToken(resp);
-                // On first load after reconnect: download cloud → local
-                await autoUpload(true);
+                // Silent re-auth on load: check Drive and download if needed
+                await autoUpload(false);
             }
         });
         try { tc.requestAccessToken({ prompt: '' }); } catch(e) { /* silent */ }
     }
 
-    // Called by the Sync button — always prompts the user
+    // Called by the Sync button — prompts auth if not connected, does nothing if already connected
     function handleAuthClick() {
         if (!gapiInited || !gsiInited) {
             alert("Still loading Google libraries, please try again.");
             return;
         }
-        // If already connected, let them force-upload
-        if (gapi.client.getToken()) {
-            scheduleAutoSync(0);
-            return;
-        }
+        // Already connected — sync btn should do nothing (logout btn handles disconnect)
+        if (gapi.client.getToken()) return;
+
         const tc = google.accounts.oauth2.initTokenClient({
             client_id: CLIENT_ID, scope: SCOPES,
             callback: async (resp) => {
@@ -397,8 +389,9 @@
                     return;
                 }
                 gapi.client.setToken(resp);
-                // First manual connect: pull cloud data if a file exists, else push local
-                await autoUpload(driveFileId === null);
+                // Always check Drive first: if a file exists there, download it.
+                // Only push local data if there is no file in Drive at all.
+                await autoUpload();
             }
         });
         tc.requestAccessToken({ prompt: 'consent' });
@@ -409,52 +402,48 @@
     function scheduleAutoSync(delay = 2000) {
         if (!gapi.client.getToken()) return; // not authenticated yet
         clearTimeout(autoSyncTimer);
-        autoSyncTimer = setTimeout(() => autoUpload(false), delay);
+        autoSyncTimer = setTimeout(() => autoUpload(true), delay);
     }
 
-    // Core upload/download logic — no alerts, no confirms, all silent.
-    // downloadFirst=true means we pull cloud → local (used on first connect).
-    async function autoUpload(downloadFirst) {
+    // uploadOnly=true → skip the cloud-check and just push (used by auto-sync after changes)
+    // uploadOnly=false/undefined → first look for an existing file in Drive, download if found, create if not
+    async function autoUpload(uploadOnly) {
         if (isSyncing) return;
         if (!navigator.onLine) { setSyncStatus('error'); return; }
         isSyncing = true;
         setSyncStatus('syncing');
         try {
-            // Find or confirm the Drive file
-            if (!driveFileId) {
+            if (uploadOnly) {
+                // We already know the file exists — just push
+                if (driveFileId) {
+                    await updateFile(driveFileId, { categories, history, month: storedMonth });
+                }
+            } else {
+                // First connection or silent re-auth: look for existing file in Drive
                 const res = await gapi.client.drive.files.list({
                     spaces: 'appDataFolder', fields: 'files(id)', pageSize: 1
                 });
                 const files = res.result.files;
                 if (files && files.length > 0) {
+                    // File exists in Drive → download it (cloud is the source of truth)
                     driveFileId = files[0].id;
+                    localStorage.setItem('driveFileId', driveFileId);
+                    await downloadFile(driveFileId);
+                    updateUI();
+                } else {
+                    // No file in Drive yet → upload local data
+                    const created = await createFile({ categories, history, month: storedMonth });
+                    driveFileId = created.id;
                     localStorage.setItem('driveFileId', driveFileId);
                 }
             }
-
-            const appData = { categories, history, month: storedMonth };
-
-            if (downloadFirst && driveFileId) {
-                // Pull from cloud into local
-                await downloadFile(driveFileId);
-                updateUI();
-            } else if (driveFileId) {
-                await updateFile(driveFileId, appData);
-            } else {
-                // No file yet — create one
-                const created = await createFile(appData);
-                driveFileId = created.id;
-                localStorage.setItem('driveFileId', driveFileId);
-            }
-            // Fetch account email to show in UI
+            // Fetch email for display
             try {
                 const info = await fetch('https://www.googleapis.com/oauth2/v3/userinfo',
                     { headers: { Authorization: 'Bearer ' + gapi.client.getToken().access_token } });
                 const profile = await info.json();
                 setSyncStatus('connected', profile.email || '');
-            } catch(e) {
-                setSyncStatus('connected');
-            }
+            } catch(e) { setSyncStatus('connected'); }
         } catch (err) {
             console.error("Auto-sync error:", err);
             setSyncStatus('error');
