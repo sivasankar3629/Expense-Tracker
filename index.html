@@ -367,95 +367,113 @@
     function checkReady() {
         if (gapiInited && gsiInited) {
             setSyncStatus('disconnected');
-            // If we have a cached account, silently re-auth on load
-            if (driveFileId && lastSignedInEmail) attemptSilentAuth();
+            // Auto-reconnect silently on every page load if we have a cached account
+            if (lastSignedInEmail) attemptSilentAuth();
         }
     }
 
-    // Silent auth on page load — uses the cached email as a hint so Google
-    // refreshes the token without showing any popup or account picker.
+    // Silent auth on page load. Uses the cached email as a hint so Google skips
+    // the account picker and issues a fresh token with no popup at all.
     function attemptSilentAuth() {
         if (!gapiInited || !gsiInited || !lastSignedInEmail) return;
         const tc = google.accounts.oauth2.initTokenClient({
-            client_id: CLIENT_ID, scope: SCOPES,
-            hint: lastSignedInEmail, // tells Google exactly which account to use
-            prompt: '',              // no UI shown
+            client_id: CLIENT_ID,
+            scope: SCOPES,
+            hint: lastSignedInEmail, // skip account picker — use this account
+            prompt: '',              // no consent screen, no popup
             callback: async (resp) => {
-                if (resp.error || !resp.access_token) return; // silently give up
+                if (resp.error || !resp.access_token) {
+                    // Silent auth failed (e.g. cookies cleared) — show sync btn so
+                    // user can manually reconnect, but keep local data intact
+                    setSyncStatus('disconnected');
+                    return;
+                }
                 gapi.client.setToken(resp);
-                await autoUpload(true); // just refresh token + upload, don't re-download
+                // On refresh: download cloud → local so we always have latest data
+                await autoUpload('download');
             }
         });
-        try { tc.requestAccessToken({ prompt: '' }); } catch(e) { /* silent */ }
+        try { tc.requestAccessToken({ prompt: '' }); } catch(e) { setSyncStatus('disconnected'); }
     }
 
-    // Called by the Sync button — prompts auth if not connected, does nothing if already connected
+    // Sync button: connect if not connected, do nothing if already connected
     function handleAuthClick() {
         if (!gapiInited || !gsiInited) {
             alert("Still loading Google libraries, please try again.");
             return;
         }
-        // Already connected — sync btn should do nothing (logout btn handles disconnect)
-        if (gapi.client.getToken()) return;
+        if (gapi.client.getToken()) return; // already connected
 
         const tc = google.accounts.oauth2.initTokenClient({
             client_id: CLIENT_ID, scope: SCOPES,
             callback: async (resp) => {
-                if (resp.error) {
-                    console.error("Auth Error:", resp);
-                    setSyncStatus('error');
-                    return;
-                }
+                if (resp.error) { console.error("Auth Error:", resp); setSyncStatus('error'); return; }
                 gapi.client.setToken(resp);
-                // Always check Drive first: if a file exists there, download it.
-                // Only push local data if there is no file in Drive at all.
-                await autoUpload();
+                // Manual connect: check Drive first, download if file exists, else upload
+                await autoUpload('connect');
             }
         });
         tc.requestAccessToken({ prompt: 'consent' });
     }
 
-    // Debounced auto-sync: called after every data change.
-    // delay=0 means immediate (used by manual button).
+    // Debounced auto-sync after every data change
     function scheduleAutoSync(delay = 2000) {
-        if (!gapi.client.getToken()) return; // not authenticated yet
+        if (!gapi.client.getToken()) return;
         clearTimeout(autoSyncTimer);
-        autoSyncTimer = setTimeout(() => autoUpload(true), delay);
+        autoSyncTimer = setTimeout(() => autoUpload('upload'), delay);
     }
 
-    // uploadOnly=true → skip the cloud-check and just push (used by auto-sync after changes)
-    // uploadOnly=false/undefined → first look for an existing file in Drive, download if found, create if not
-    async function autoUpload(uploadOnly) {
+    // mode: 'upload'   → just push local data to Drive (after a change)
+    //       'download' → pull Drive data to local (on refresh/silent re-auth)
+    //       'connect'  → first manual connect: download if file exists, else upload
+    async function autoUpload(mode) {
         if (isSyncing) return;
         if (!navigator.onLine) { setSyncStatus('error'); return; }
         isSyncing = true;
         setSyncStatus('syncing');
         try {
-            if (uploadOnly) {
-                // We already know the file exists — just push
+            if (mode === 'upload') {
+                // Simple push — file must already exist
                 if (driveFileId) {
                     await updateFile(driveFileId, { categories, history, month: storedMonth });
                 }
-            } else {
-                // First connection or silent re-auth: look for existing file in Drive
+
+            } else if (mode === 'download') {
+                // Pull cloud → local. driveFileId may already be cached.
+                if (!driveFileId) {
+                    const res = await gapi.client.drive.files.list({
+                        spaces: 'appDataFolder', fields: 'files(id)', pageSize: 1
+                    });
+                    const files = res.result.files;
+                    if (files && files.length > 0) {
+                        driveFileId = files[0].id;
+                        localStorage.setItem('driveFileId', driveFileId);
+                    }
+                }
+                if (driveFileId) {
+                    await downloadFile(driveFileId);
+                    updateUI();
+                }
+
+            } else if (mode === 'connect') {
+                // First manual connect: look for existing file, download or create
                 const res = await gapi.client.drive.files.list({
                     spaces: 'appDataFolder', fields: 'files(id)', pageSize: 1
                 });
                 const files = res.result.files;
                 if (files && files.length > 0) {
-                    // File exists in Drive → download it (cloud is the source of truth)
                     driveFileId = files[0].id;
                     localStorage.setItem('driveFileId', driveFileId);
                     await downloadFile(driveFileId);
                     updateUI();
                 } else {
-                    // No file in Drive yet → upload local data
                     const created = await createFile({ categories, history, month: storedMonth });
                     driveFileId = created.id;
                     localStorage.setItem('driveFileId', driveFileId);
                 }
             }
-            // Fetch email for display
+
+            // Fetch and cache email for display + future silent auth hint
             try {
                 const info = await fetch('https://www.googleapis.com/oauth2/v3/userinfo',
                     { headers: { Authorization: 'Bearer ' + gapi.client.getToken().access_token } });
@@ -466,6 +484,7 @@
                 }
                 setSyncStatus('connected', profile.email || '');
             } catch(e) { setSyncStatus('connected'); }
+
         } catch (err) {
             console.error("Auto-sync error:", err);
             setSyncStatus('error');
