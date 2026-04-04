@@ -99,20 +99,138 @@
             margin-top: 24px; border-top: 1px solid var(--glass-border); 
             padding-top: 20px; max-height: 280px; overflow-y: auto; padding-right: 5px;
         }
-        /* Scrollbar Styling */
         .history::-webkit-scrollbar { width: 5px; }
         .history::-webkit-scrollbar-track { background: transparent; }
         .history::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 10px; }
         body.dark-mode .history::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); }
 
-        .history-item { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(0,0,0,0.05); }
+        /* History Item with delete support */
+        .history-item-wrapper {
+            position: relative;
+            overflow: hidden;
+            border-radius: 12px;
+            margin-bottom: 2px;
+        }
+
+        /* Swipe-to-delete red background */
+        .delete-bg {
+            position: absolute;
+            right: 0; top: 0; bottom: 0;
+            width: 80px;
+            background: #ef4444;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 1.1rem;
+            border-radius: 12px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .history-item { 
+            display: flex; align-items: center; padding: 12px 0; 
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            background: transparent;
+            transition: transform 0.2s ease;
+            position: relative;
+            touch-action: pan-y;
+        }
         body.dark-mode .history-item { border-bottom-color: rgba(255,255,255,0.05); }
+
         .icon-circle { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 14px; flex-shrink: 0; }
         .item-info { flex: 1; min-width: 0; }
         .item-name { font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .item-cat { font-size: 0.7rem; color: var(--sub-text); font-weight: 600; display: flex; justify-content: space-between; padding-right: 10px; }
         .item-date { font-weight: 400; opacity: 0.8; }
-        .item-amt { font-weight: 700; color: #ef4444; font-size: 0.95rem; }
+        .item-amt { font-weight: 700; color: #ef4444; font-size: 0.95rem; margin-right: 8px; }
+
+        /* Delete button (visible on hover for desktop) */
+        .delete-btn {
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            padding: 6px 8px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            opacity: 0;
+            transition: opacity 0.15s, background 0.15s;
+            flex-shrink: 0;
+        }
+        .history-item-wrapper:hover .delete-btn { opacity: 1; }
+        .delete-btn:hover { background: rgba(239, 68, 68, 0.1); }
+
+        /* On touch devices, always show delete btn */
+        @media (hover: none) {
+            .delete-btn { opacity: 0.4; }
+        }
+
+        /* Confirm Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(6px);
+            z-index: 1000;
+            align-items: center; justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+
+        .modal-box {
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            border-radius: 22px;
+            padding: 28px 24px;
+            max-width: 320px; width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            text-align: center;
+            animation: popIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0.85); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .modal-icon {
+            width: 52px; height: 52px; border-radius: 16px;
+            background: rgba(239,68,68,0.12);
+            color: #ef4444;
+            font-size: 1.4rem;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 16px;
+        }
+
+        .modal-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 6px; }
+        .modal-desc { font-size: 0.82rem; color: var(--sub-text); margin-bottom: 20px; line-height: 1.5; }
+        .modal-preview {
+            background: rgba(239,68,68,0.06);
+            border: 1px solid rgba(239,68,68,0.15);
+            border-radius: 10px;
+            padding: 10px 14px;
+            margin-bottom: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-on-glass);
+        }
+
+        .modal-actions { display: flex; gap: 10px; }
+        .modal-cancel {
+            flex: 1; padding: 13px; border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            background: transparent; color: var(--text-on-glass);
+            font-weight: 600; font-size: 0.9rem; cursor: pointer;
+            font-family: inherit;
+        }
+        .modal-confirm {
+            flex: 1; padding: 13px; border-radius: 12px;
+            border: none;
+            background: #ef4444; color: white;
+            font-weight: 700; font-size: 0.9rem; cursor: pointer;
+            font-family: inherit;
+            box-shadow: 0 4px 14px -2px rgba(239,68,68,0.4);
+        }
+        .modal-confirm:active { transform: scale(0.97); }
 
         /* Settings Area */
         .settings-btn {
@@ -128,9 +246,32 @@
         .divider { height: 1px; background: var(--glass-border); margin: 20px 0; }
         .reset-btn { background: rgba(0,0,0,0.05); color: var(--text-on-glass); box-shadow: none; }
         body.dark-mode .reset-btn { background: rgba(255,255,255,0.05); }
+
+        /* Fade-out animation on delete */
+        .history-item-wrapper.removing {
+            animation: slideOut 0.3s ease forwards;
+        }
+        @keyframes slideOut {
+            from { opacity: 1; transform: translateX(0); max-height: 80px; }
+            to { opacity: 0; transform: translateX(60px); max-height: 0; padding: 0; margin: 0; }
+        }
     </style>
 </head>
 <body>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal-box">
+        <div class="modal-icon"><i class="fa-solid fa-trash-can"></i></div>
+        <div class="modal-title">Delete Transaction?</div>
+        <div class="modal-desc">This will permanently remove the expense and restore the amount to the category balance.</div>
+        <div class="modal-preview" id="modalPreview">—</div>
+        <div class="modal-actions">
+            <button class="modal-cancel" onclick="closeDeleteModal()">Cancel</button>
+            <button class="modal-confirm" onclick="confirmDelete()"><i class="fa-solid fa-trash-can"></i> Delete</button>
+        </div>
+    </div>
+</div>
 
 <div class="container">
     <div class="header">
@@ -138,7 +279,6 @@
         <button class="dark-mode-toggle" onclick="toggleDark()"><i class="fa-solid fa-cloud-moon"></i></button>
     </div>
 
-    <!-- Dynamic Cards render here -->
     <div id="cards-container"></div>
 
     <div class="input-group">
@@ -188,20 +328,18 @@
     let history = JSON.parse(localStorage.getItem('history')) || [];
     let storedMonth = localStorage.getItem('currentMonth');
 
-    // Auto-Reset Check
+    // Pending delete state
+    let pendingDeleteIndex = null;
+
     function checkMonthReset() {
-        const currentRealMonth = new Date().toISOString().slice(0, 7); // Format: "YYYY-MM"
-        
+        const currentRealMonth = new Date().toISOString().slice(0, 7);
         if (!storedMonth) {
-            // First time loading the app
             storedMonth = currentRealMonth;
             localStorage.setItem('currentMonth', storedMonth);
         } else if (storedMonth !== currentRealMonth) {
-            // A new month has started! Reset balances, but keep history.
             categories.forEach(cat => cat.balance = cat.limit);
             storedMonth = currentRealMonth;
             localStorage.setItem('currentMonth', storedMonth);
-            // Save immediately
             localStorage.setItem('myCats', JSON.stringify(categories));
         }
     }
@@ -241,15 +379,25 @@
         });
 
         historyList.innerHTML = '<label>Recent Activity</label>';
-        if(history.length === 0) historyList.innerHTML += '<div style="font-size:0.8rem; opacity:0.6;">No recent transactions.</div>';
-        
-        history.slice().reverse().forEach(item => {
+        if (history.length === 0) {
+            historyList.innerHTML += '<div style="font-size:0.8rem; opacity:0.6;">No recent transactions.</div>';
+        }
+
+        // Render in reverse order; track real index (in original array) for deletion
+        const reversed = history.map((item, i) => ({ item, realIndex: i })).reverse();
+
+        reversed.forEach(({ item, realIndex }) => {
             const cat = categories.find(c => c.id === item.catId);
             const p = cat ? palettes[cat.pIndex % palettes.length] : palettes[0];
             const catName = cat ? cat.name : "Deleted";
             const dateStr = item.date || "Unknown Date";
 
-            historyList.innerHTML += `
+            const wrapper = document.createElement('div');
+            wrapper.className = 'history-item-wrapper';
+            wrapper.dataset.index = realIndex;
+
+            wrapper.innerHTML = `
+                <div class="delete-bg"><i class="fa-solid fa-trash-can"></i></div>
                 <div class="history-item">
                     <div class="icon-circle" style="background: ${p.base}20; color: ${p.base}"><i class="fa-solid ${p.icon}"></i></div>
                     <div class="item-info">
@@ -260,9 +408,107 @@
                         </div>
                     </div>
                     <div class="item-amt">-₹${item.val}</div>
+                    <button class="delete-btn" title="Delete expense" onclick="requestDelete(${realIndex})">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
                 </div>`;
+
+            // Touch swipe to delete
+            let startX = null;
+            const historyItem = wrapper.querySelector('.history-item');
+            const deleteBg = wrapper.querySelector('.delete-bg');
+
+            wrapper.addEventListener('touchstart', e => {
+                startX = e.touches[0].clientX;
+            }, { passive: true });
+
+            wrapper.addEventListener('touchmove', e => {
+                if (startX === null) return;
+                const dx = e.touches[0].clientX - startX;
+                if (dx < 0) {
+                    const shift = Math.max(-80, dx);
+                    historyItem.style.transform = `translateX(${shift}px)`;
+                    deleteBg.style.opacity = Math.min(1, Math.abs(shift) / 60);
+                }
+            }, { passive: true });
+
+            wrapper.addEventListener('touchend', e => {
+                if (startX === null) return;
+                const dx = e.changedTouches[0].clientX - startX;
+                if (dx < -50) {
+                    // Swiped far enough — trigger delete confirmation
+                    historyItem.style.transform = '';
+                    deleteBg.style.opacity = 0;
+                    requestDelete(realIndex);
+                } else {
+                    // Snap back
+                    historyItem.style.transform = '';
+                    deleteBg.style.opacity = 0;
+                }
+                startX = null;
+            }, { passive: true });
+
+            historyList.appendChild(wrapper);
         });
     }
+
+    // ---- Delete Flow ----
+
+    function requestDelete(realIndex) {
+        const item = history[realIndex];
+        if (!item) return;
+
+        pendingDeleteIndex = realIndex;
+
+        const cat = categories.find(c => c.id === item.catId);
+        const catName = cat ? cat.name : "Deleted Category";
+
+        document.getElementById('modalPreview').textContent =
+            `"${item.desc}" — ₹${item.val} (${catName})`;
+
+        document.getElementById('deleteModal').classList.add('active');
+    }
+
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').classList.remove('active');
+        pendingDeleteIndex = null;
+    }
+
+    function confirmDelete() {
+        if (pendingDeleteIndex === null) return;
+
+        const item = history[pendingDeleteIndex];
+
+        // Restore balance to the category
+        const catIndex = categories.findIndex(c => c.id === item.catId);
+        if (catIndex > -1) {
+            categories[catIndex].balance += item.val;
+        }
+
+        // Animate removal then update
+        const wrapper = document.querySelector(`.history-item-wrapper[data-index="${pendingDeleteIndex}"]`);
+        if (wrapper) {
+            wrapper.classList.add('removing');
+            wrapper.addEventListener('animationend', () => {
+                history.splice(pendingDeleteIndex, 1);
+                pendingDeleteIndex = null;
+                updateUI();
+            }, { once: true });
+        } else {
+            history.splice(pendingDeleteIndex, 1);
+            pendingDeleteIndex = null;
+            updateUI();
+        }
+
+        closeDeleteModal();
+    }
+
+    // Close modal on overlay click
+    document.getElementById('deleteModal').addEventListener('click', function(e) {
+        if (e.target === this) closeDeleteModal();
+    });
+
+    // ---- Existing functions ----
 
     function addEntry() {
         const desc = document.getElementById('desc').value || "Expense";
@@ -272,19 +518,16 @@
         if (isNaN(val) || val <= 0 || !catId) return;
 
         let catIndex = categories.findIndex(c => c.id === catId);
-        if(catIndex > -1) {
+        if (catIndex > -1) {
             categories[catIndex].balance -= val;
         }
 
-        // Generate clean date string (e.g., "Oct 24, 2:30 PM")
         const now = new Date();
         const timeString = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         const dateString = now.toLocaleDateString([], {month: 'short', day: 'numeric'});
         const fullDate = `${dateString}, ${timeString}`;
 
         history.push({ desc: desc, val: val, catId: catId, date: fullDate });
-        
-        // Keep up to 50 transactions in history so previous month is visible
         if (history.length > 50) history.shift(); 
 
         document.getElementById('desc').value = '';
@@ -295,17 +538,13 @@
     function addNewCategory() {
         const name = document.getElementById('newCatName').value.trim();
         const limit = parseFloat(document.getElementById('newCatLimit').value);
-        
         if (!name || isNaN(limit) || limit <= 0) {
             alert("Please provide a valid name and limit.");
             return;
         }
-
         const newId = 'cat_' + Date.now();
         const pIndex = categories.length; 
-
         categories.push({ id: newId, name: name, limit: limit, balance: limit, pIndex: pIndex });
-        
         document.getElementById('newCatName').value = '';
         document.getElementById('newCatLimit').value = '';
         updateUI();
@@ -328,14 +567,14 @@
     }
 
     function deleteCategory(id) {
-        if(confirm("Are you sure you want to delete this category?")) {
+        if (confirm("Are you sure you want to delete this category?")) {
             categories = categories.filter(c => c.id !== id);
             updateUI();
         }
     }
 
     function manualReset() {
-        if(confirm("Force a manual reset? This resets balances to max and wipes all history.")) {
+        if (confirm("Force a manual reset? This resets balances to max and wipes all history.")) {
             categories.forEach(cat => cat.balance = cat.limit);
             history = [];
             updateUI();
@@ -352,10 +591,9 @@
         localStorage.setItem('dark', document.body.classList.contains('dark-mode'));
     }
 
-    // Initialize App
-    if(localStorage.getItem('dark') === 'true') document.body.classList.add('dark-mode');
-    checkMonthReset(); // Check if it's a new month first
-    updateUI();        // Then build the UI
+    if (localStorage.getItem('dark') === 'true') document.body.classList.add('dark-mode');
+    checkMonthReset();
+    updateUI();
 </script>
 
 </body>
