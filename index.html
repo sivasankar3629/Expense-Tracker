@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Budget Tracker</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a73e8">
+
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background: #f0f2f5; 
+            padding: 15px; 
+            display: flex; 
+            justify-content: center; 
+            transition: background 0.3s;
+        }
+        body.dark-mode { background: #121212; color: #e0e0e0; }
+        .container { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 15px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+            width: 100%; 
+            max-width: 400px; 
+        }
+        body.dark-mode .container { background: #1e1e1e; color: white; border: 1px solid #333; }
+        .box { padding: 15px; border-radius: 10px; margin-bottom: 10px; color: white; text-align: center; }
+        .needs-box { background: #27ae60; }
+        .wants-box { background: #f39c12; }
+        .amount { font-size: 1.8em; font-weight: bold; }
+        input, select, button { 
+            width: 100%; padding: 12px; margin-top: 8px; border-radius: 8px; 
+            border: 1px solid #ddd; box-sizing: border-box; font-size: 16px; 
+        }
+        body.dark-mode input, body.dark-mode select { background: #2c2c2c; border-color: #444; color: white; }
+        button { background: #1a73e8; color: white; border: none; font-weight: bold; cursor: pointer; }
+        .dark-mode-btn { background: #607d8b; margin-bottom: 15px; font-size: 0.8em; }
+        .history { margin-top: 20px; max-height: 150px; overflow-y: auto; border-top: 1px solid #eee; padding-top: 10px; }
+        .history-item { display: flex; justify-content: space-between; font-size: 0.85em; padding: 8px 0; border-bottom: 1px solid #fafafa; }
+        .red { color: #e74c3c; font-weight: bold; }
+        .reset-btn { background: #95a5a6; margin-top: 20px; font-size: 0.7em; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <button class="dark-mode-btn" onclick="document.body.classList.toggle('dark-mode')">🌓 Toggle Dark Mode</button>
+
+    <div class="box needs-box">
+        <div style="font-size: 0.9em;">Needs Left (of ₹6,000)</div>
+        <div class="amount" id="needsDisplay">₹6,000</div>
+    </div>
+    <div class="box wants-box">
+        <div style="font-size: 0.9em;">Wants Left (of ₹7,150)</div>
+        <div class="amount" id="wantsDisplay">₹7,150</div>
+    </div>
+
+    <input type="text" id="desc" placeholder="What did you buy?">
+    <input type="number" id="amt" placeholder="Amount" inputmode="decimal">
+    <select id="cat">
+        <option value="needs">Daily Need (Grocery/Petrol)</option>
+        <option value="wants">Want (Lifestyle/Fun)</option>
+    </select>
+    <button onclick="addEntry()">Add Transaction</button>
+
+    <div class="history" id="historyList">
+        <strong>Recent History:</strong>
+    </div>
+    
+    <button class="reset-btn" onclick="clearAll()">Reset Month</button>
+</div>
+
+<script>
+    let needs = parseFloat(localStorage.getItem('needs')) ?? 6000;
+    let wants = parseFloat(localStorage.getItem('wants')) ?? 7150;
+    let history = JSON.parse(localStorage.getItem('history')) || [];
+
+    function update() {
+        document.getElementById('needsDisplay').innerText = '₹' + needs.toLocaleString();
+        document.getElementById('wantsDisplay').innerText = '₹' + wants.toLocaleString();
+        localStorage.setItem('needs', needs);
+        localStorage.setItem('wants', wants);
+        localStorage.setItem('history', JSON.stringify(history));
+        
+        const list = document.getElementById('historyList');
+        list.innerHTML = '<strong>Recent History:</strong>';
+        history.slice().reverse().forEach(item => {
+            list.innerHTML += `<div class="history-item"><span>${item.name}</span><span class="red">-₹${item.val}</span></div>`;
+        });
+    }
+
+    function addEntry() {
+        const name = document.getElementById('desc').value || "Expense";
+        const val = parseFloat(document.getElementById('amt').value);
+        const cat = document.getElementById('cat').value;
+
+        if (isNaN(val) || val <= 0) return;
+
+        if (cat === 'needs') { needs -= val; } 
+        else { wants -= val; }
+
+        history.push({name, val, cat});
+        if (history.length > 15) history.shift();
+
+        document.getElementById('desc').value = '';
+        document.getElementById('amt').value = '';
+        update();
+    }
+
+    function clearAll() {
+        if(confirm("Start a new month? Your current balances will reset.")) {
+            needs = 6000; wants = 7150; history = [];
+            update();
+        }
+    }
+
+    update();
+</script>
+
+</body>
+</html>
