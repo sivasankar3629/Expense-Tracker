@@ -287,8 +287,22 @@
     let gsiInited    = false;
     let driveFileId       = localStorage.getItem('driveFileId') || null;
     let lastSignedInEmail = localStorage.getItem('lastSignedInEmail') || '';
+    let storedToken       = localStorage.getItem('driveToken') || null;
+    let tokenExpiry       = parseInt(localStorage.getItem('driveTokenExpiry') || '0');
     let autoSyncTimer = null;
     let isSyncing    = false;
+
+    function saveToken(resp) {
+        storedToken  = resp.access_token;
+        // Google tokens expire in 3600s; store expiry time with 5min safety margin
+        tokenExpiry  = Date.now() + (resp.expires_in - 300) * 1000;
+        localStorage.setItem('driveToken',       storedToken);
+        localStorage.setItem('driveTokenExpiry', tokenExpiry);
+    }
+
+    function isTokenValid() {
+        return storedToken && Date.now() < tokenExpiry;
+    }
 
     function setSyncStatus(status, email) {
         // status: 'disconnected' | 'connected' | 'syncing' | 'error'
@@ -335,6 +349,10 @@
         clearTimeout(autoSyncTimer);
         localStorage.removeItem('driveFileId');
         localStorage.removeItem('lastSignedInEmail');
+        localStorage.removeItem('driveToken');
+        localStorage.removeItem('driveTokenExpiry');
+        storedToken = null;
+        tokenExpiry = 0;
 
         // Reset data to defaults
         categories = [
@@ -367,36 +385,41 @@
     function checkReady() {
         if (gapiInited && gsiInited) {
             setSyncStatus('disconnected');
-            // Auto-reconnect silently on every page load if we have a cached account
-            if (lastSignedInEmail) attemptSilentAuth();
+            // If we have a valid stored token, restore it immediately — no popup needed
+            if (isTokenValid() && lastSignedInEmail) {
+                gapi.client.setToken({ access_token: storedToken });
+                autoUpload('download'); // pull latest from Drive on load
+            } else if (lastSignedInEmail) {
+                // Token expired — try silent refresh using the cached email hint
+                attemptSilentRefresh();
+            }
         }
     }
 
-    // Silent auth on page load. Uses the cached email as a hint so Google skips
-    // the account picker and issues a fresh token with no popup at all.
-    function attemptSilentAuth() {
+    // Uses the cached email hint to silently get a fresh token without any popup.
+    // Falls back gracefully — local data is never touched on failure.
+    function attemptSilentRefresh() {
         if (!gapiInited || !gsiInited || !lastSignedInEmail) return;
         const tc = google.accounts.oauth2.initTokenClient({
             client_id: CLIENT_ID,
             scope: SCOPES,
-            hint: lastSignedInEmail, // skip account picker — use this account
-            prompt: '',              // no consent screen, no popup
+            hint: lastSignedInEmail,
+            prompt: '',
             callback: async (resp) => {
                 if (resp.error || !resp.access_token) {
-                    // Silent auth failed (e.g. cookies cleared) — show sync btn so
-                    // user can manually reconnect, but keep local data intact
+                    // Couldn't silently refresh — user needs to click Sync once
                     setSyncStatus('disconnected');
                     return;
                 }
+                saveToken(resp);
                 gapi.client.setToken(resp);
-                // On refresh: download cloud → local so we always have latest data
                 await autoUpload('download');
             }
         });
         try { tc.requestAccessToken({ prompt: '' }); } catch(e) { setSyncStatus('disconnected'); }
     }
 
-    // Sync button: connect if not connected, do nothing if already connected
+    // Sync button: connect (with consent popup) if not already connected
     function handleAuthClick() {
         if (!gapiInited || !gsiInited) {
             alert("Still loading Google libraries, please try again.");
@@ -408,8 +431,8 @@
             client_id: CLIENT_ID, scope: SCOPES,
             callback: async (resp) => {
                 if (resp.error) { console.error("Auth Error:", resp); setSyncStatus('error'); return; }
+                saveToken(resp);
                 gapi.client.setToken(resp);
-                // Manual connect: check Drive first, download if file exists, else upload
                 await autoUpload('connect');
             }
         });
@@ -527,7 +550,7 @@
 
     // Re-auth when token expires (tokens last ~1 hour)
     setInterval(() => {
-        if (gapi.client.getToken()) attemptSilentAuth();
+        if (lastSignedInEmail) attemptSilentRefresh();
     }, 45 * 60 * 1000);
 
     // Sync when coming back online
