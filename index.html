@@ -77,6 +77,9 @@
             cursor: pointer; font-weight: 700; transition: all 0.2s; font-family: inherit; font-size: 0.85rem;
         }
         .mode-btn:hover { color: var(--text); border-color: var(--accent); }
+        #sync-btn.connected { color: var(--accent2); border-color: var(--accent2); }
+        #sync-btn.syncing   { color: var(--sub); border-style: dashed; cursor: default; }
+        #sync-btn.error     { color: var(--danger); border-color: var(--danger); }
 
         .budget-card {
             padding: 18px 20px; border-radius: 20px; margin-bottom: 12px;
@@ -197,6 +200,7 @@
         .modal-confirm:active { transform: scale(0.97); }
 
         .empty-state { font-size: 0.78rem; color: var(--sub); opacity: 0.7; text-align: center; padding: 16px 0; }
+        #sync-btn.disconnecting { color: var(--danger); border-color: var(--danger); border-style: dashed; }
         .divider { height: 1px; background: var(--stroke); margin: 14px 0; }
     </style>
 </head>
@@ -252,6 +256,12 @@
         <button class="main-btn" style="background:var(--accent2);" onclick="addNewCategory()">Create Category</button>
         <div class="divider"></div>
         <button class="main-btn reset-btn" onclick="manualReset()"><i class="fa-solid fa-rotate-left"></i> Force Manual Reset</button>
+        <div class="divider"></div>
+        <div id="drive-account-section" style="display:none;">
+            <span class="sect-label">Google Drive Account</span>
+            <div id="drive-account-info" style="font-size:0.78rem;color:var(--sub);margin-bottom:10px;font-weight:600;"></div>
+            <button class="main-btn" style="background:rgba(192,57,43,0.12);color:var(--danger);border:1px solid rgba(192,57,43,0.2);box-shadow:none;" onclick="disconnectDrive()"><i class="fa-solid fa-right-from-bracket"></i> Disconnect & Sign Out</button>
+        </div>
     </div>
 </div>
 
@@ -278,8 +288,56 @@
     let pendingDeleteIndex = null;
 
     // ── GOOGLE DRIVE SYNC ──
-    let gapiInited = false;
-    let gsiInited  = false;
+    let gapiInited   = false;
+    let gsiInited    = false;
+    let driveFileId  = localStorage.getItem('driveFileId') || null;
+    let autoSyncTimer = null;
+    let isSyncing    = false;
+
+    function setSyncStatus(status, email) {
+        // status: 'disconnected' | 'connected' | 'syncing' | 'error'
+        const btn = document.getElementById('sync-btn');
+        const accountSection = document.getElementById('drive-account-section');
+        btn.classList.remove('connected','syncing','error');
+        if (status === 'disconnected') {
+            btn.innerHTML = '<i class="fa-solid fa-cloud"></i> Sync';
+            btn.style.opacity = gapiInited && gsiInited ? '1' : '0.5';
+            if (accountSection) accountSection.style.display = 'none';
+        } else if (status === 'connected') {
+            btn.classList.add('connected');
+            btn.innerHTML = '<i class="fa-solid fa-cloud-check"></i> Synced';
+            btn.style.opacity = '1';
+            if (accountSection) {
+                accountSection.style.display = 'block';
+                const info = document.getElementById('drive-account-info');
+                if (info && email) info.textContent = '✓ Connected as ' + email;
+                else if (info) info.textContent = '✓ Connected to Google Drive';
+            }
+        } else if (status === 'syncing') {
+            btn.classList.add('syncing');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Syncing…';
+            btn.style.opacity = '1';
+        } else if (status === 'error') {
+            btn.classList.add('error');
+            btn.innerHTML = '<i class="fa-solid fa-cloud-exclamation"></i> Sync Error';
+            btn.style.opacity = '1';
+        }
+    }
+
+    function disconnectDrive() {
+        if (!confirm("Disconnect Google Drive? Your local data stays safe. You can reconnect any account anytime.")) return;
+        // Revoke the token with Google
+        const token = gapi.client.getToken();
+        if (token) {
+            google.accounts.oauth2.revoke(token.access_token, () => {});
+            gapi.client.setToken(null);
+        }
+        // Clear cached Drive file reference
+        driveFileId = null;
+        localStorage.removeItem('driveFileId');
+        clearTimeout(autoSyncTimer);
+        setSyncStatus('disconnected');
+    }
 
     function gapiLoaded() {
         gapi.load('client', async () => {
@@ -295,64 +353,113 @@
     }
 
     function checkReady() {
-        if (gapiInited && gsiInited)
-            document.getElementById('sync-btn').style.opacity = '1';
+        if (gapiInited && gsiInited) {
+            setSyncStatus('disconnected');
+            // If we already have a file ID cached, try a silent token refresh on load
+            if (driveFileId) attemptSilentAuth();
+        }
     }
 
+    // Silent auth: no UI prompt, just tries to get a token in the background.
+    // Will silently fail (no popup) if the user hasn't connected before.
+    function attemptSilentAuth() {
+        if (!gapiInited || !gsiInited) return;
+        const tc = google.accounts.oauth2.initTokenClient({
+            client_id: CLIENT_ID, scope: SCOPES,
+            prompt: '',   // empty = no consent screen, silent only
+            callback: async (resp) => {
+                if (resp.error || !resp.access_token) return; // silent fail
+                gapi.client.setToken(resp);
+                // On first load after reconnect: download cloud → local
+                await autoUpload(true);
+            }
+        });
+        try { tc.requestAccessToken({ prompt: '' }); } catch(e) { /* silent */ }
+    }
+
+    // Called by the Sync button — always prompts the user
     function handleAuthClick() {
         if (!gapiInited || !gsiInited) {
-            alert("Still loading Google libraries, please try again in a moment.");
+            alert("Still loading Google libraries, please try again.");
             return;
         }
-        const tokenClient = google.accounts.oauth2.initTokenClient({
-            client_id: CLIENT_ID,
-            scope: SCOPES,
+        // If already connected, let them force-upload
+        if (gapi.client.getToken()) {
+            scheduleAutoSync(0);
+            return;
+        }
+        const tc = google.accounts.oauth2.initTokenClient({
+            client_id: CLIENT_ID, scope: SCOPES,
             callback: async (resp) => {
                 if (resp.error) {
                     console.error("Auth Error:", resp);
-                    alert("Authentication failed: " + resp.error);
-                    document.getElementById('sync-btn').innerHTML = '<i class="fa-solid fa-cloud"></i> Sync';
+                    setSyncStatus('error');
                     return;
                 }
                 gapi.client.setToken(resp);
-                document.getElementById('sync-btn').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Syncing...';
-                await syncWithDrive();
+                // First manual connect: pull cloud data if a file exists, else push local
+                await autoUpload(driveFileId === null);
             }
         });
-        tokenClient.requestAccessToken({ prompt: 'consent' });
+        tc.requestAccessToken({ prompt: 'consent' });
     }
 
-    async function syncWithDrive() {
+    // Debounced auto-sync: called after every data change.
+    // delay=0 means immediate (used by manual button).
+    function scheduleAutoSync(delay = 2000) {
+        if (!gapi.client.getToken()) return; // not authenticated yet
+        clearTimeout(autoSyncTimer);
+        autoSyncTimer = setTimeout(() => autoUpload(false), delay);
+    }
+
+    // Core upload/download logic — no alerts, no confirms, all silent.
+    // downloadFirst=true means we pull cloud → local (used on first connect).
+    async function autoUpload(downloadFirst) {
+        if (isSyncing) return;
+        if (!navigator.onLine) { setSyncStatus('error'); return; }
+        isSyncing = true;
+        setSyncStatus('syncing');
         try {
-            const currentToken = gapi.client.getToken();
-            if (!currentToken) { alert("Auth failed: Token not registered."); return; }
+            // Find or confirm the Drive file
+            if (!driveFileId) {
+                const res = await gapi.client.drive.files.list({
+                    spaces: 'appDataFolder', fields: 'files(id)', pageSize: 1
+                });
+                const files = res.result.files;
+                if (files && files.length > 0) {
+                    driveFileId = files[0].id;
+                    localStorage.setItem('driveFileId', driveFileId);
+                }
+            }
 
-            const response = await gapi.client.drive.files.list({
-                spaces: 'appDataFolder', fields: 'files(id, name)', pageSize: 1
-            });
-
-            const files = response.result.files;
             const appData = { categories, history, month: storedMonth };
 
-            if (files && files.length > 0) {
-                const fileId = files[0].id;
-                if (confirm("Cloud data found. OK to UPLOAD local data?\n(Cancel to DOWNLOAD from Cloud)")) {
-                    await updateFile(fileId, appData);
-                    alert("Cloud Updated!");
-                } else {
-                    await downloadFile(fileId);
-                    alert("Local Data Synced from Cloud!");
-                }
+            if (downloadFirst && driveFileId) {
+                // Pull from cloud into local
+                await downloadFile(driveFileId);
+                updateUI();
+            } else if (driveFileId) {
+                await updateFile(driveFileId, appData);
             } else {
-                await createFile(appData);
-                alert("First sync complete! Data saved to Google Drive.");
+                // No file yet — create one
+                const created = await createFile(appData);
+                driveFileId = created.id;
+                localStorage.setItem('driveFileId', driveFileId);
+            }
+            // Fetch account email to show in UI
+            try {
+                const info = await fetch('https://www.googleapis.com/oauth2/v3/userinfo',
+                    { headers: { Authorization: 'Bearer ' + gapi.client.getToken().access_token } });
+                const profile = await info.json();
+                setSyncStatus('connected', profile.email || '');
+            } catch(e) {
+                setSyncStatus('connected');
             }
         } catch (err) {
-            console.error("Sync Error:", err);
-            alert("Sync failed: " + (err?.error?.message || err.result?.error?.message || JSON.stringify(err)));
+            console.error("Auto-sync error:", err);
+            setSyncStatus('error');
         } finally {
-            document.getElementById('sync-btn').innerHTML = '<i class="fa-solid fa-cloud"></i> Sync';
-            updateUI();
+            isSyncing = false;
         }
     }
 
@@ -380,13 +487,23 @@
         const cloudData = response.result;
         if (cloudData && cloudData.categories) {
             categories  = cloudData.categories;
-            history     = cloudData.history;
+            history     = cloudData.history || [];
             storedMonth = cloudData.month;
-            localStorage.setItem('myCats',        JSON.stringify(categories));
-            localStorage.setItem('history',       JSON.stringify(history));
-            localStorage.setItem('currentMonth',  storedMonth);
+            localStorage.setItem('myCats',       JSON.stringify(categories));
+            localStorage.setItem('history',      JSON.stringify(history));
+            localStorage.setItem('currentMonth', storedMonth);
         }
     }
+
+    // Re-auth when token expires (tokens last ~1 hour)
+    setInterval(() => {
+        if (gapi.client.getToken()) attemptSilentAuth();
+    }, 45 * 60 * 1000);
+
+    // Sync when coming back online
+    window.addEventListener('online', () => {
+        if (gapi.client.getToken()) scheduleAutoSync(1000);
+    });
 
     // ── APP LOGIC ──
     function checkMonthReset() {
@@ -504,11 +621,13 @@
                 history.splice(pendingDeleteIndex, 1);
                 pendingDeleteIndex = null;
                 updateUI();
+                scheduleAutoSync();
             }, { once: true });
         } else {
             history.splice(pendingDeleteIndex, 1);
             pendingDeleteIndex = null;
             updateUI();
+            scheduleAutoSync();
         }
     }
     document.getElementById('deleteModal').addEventListener('click', function(e) {
@@ -529,6 +648,7 @@
         document.getElementById('desc').value = '';
         document.getElementById('amt').value  = '';
         updateUI();
+        scheduleAutoSync();
     }
 
     function addNewCategory() {
@@ -539,6 +659,7 @@
         document.getElementById('newCatName').value  = '';
         document.getElementById('newCatLimit').value = '';
         updateUI();
+        scheduleAutoSync();
     }
 
     function saveLimits() {
@@ -547,6 +668,7 @@
             if (inp) { const v = parseFloat(inp.value); if (!isNaN(v) && v > 0) { cat.balance += (v - cat.limit); cat.limit = v; } }
         });
         updateUI();
+        scheduleAutoSync();
         alert("Limits updated!");
     }
 
@@ -554,6 +676,7 @@
         if (confirm("Delete this category? Its transactions will remain in history.")) {
             categories = categories.filter(c => c.id !== id);
             updateUI();
+            scheduleAutoSync();
         }
     }
 
@@ -562,6 +685,7 @@
             categories.forEach(c => c.balance = c.limit);
             history = [];
             updateUI();
+            scheduleAutoSync();
         }
     }
 
