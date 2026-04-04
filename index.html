@@ -283,25 +283,32 @@
     let pendingDeleteIndex = null;
 
     // ── GOOGLE DRIVE SYNC ──
-    let gapiInited   = false;
-    let gsiInited    = false;
+    let gapiInited        = false;
+    let gsiInited         = false;
     let driveFileId       = localStorage.getItem('driveFileId') || null;
     let lastSignedInEmail = localStorage.getItem('lastSignedInEmail') || '';
     let storedToken       = localStorage.getItem('driveToken') || null;
     let tokenExpiry       = parseInt(localStorage.getItem('driveTokenExpiry') || '0');
-    let autoSyncTimer = null;
-    let isSyncing    = false;
+    let autoSyncTimer     = null;
+    let isSyncing         = false;
+
+    // Always use this to get the current token — works from localStorage or gapi
+    function getToken() {
+        const gapiTok = gapi.client.getToken();
+        return gapiTok ? gapiTok.access_token : storedToken;
+    }
 
     function saveToken(resp) {
-        storedToken  = resp.access_token;
-        // Google tokens expire in 3600s; store expiry time with 5min safety margin
-        tokenExpiry  = Date.now() + (resp.expires_in - 300) * 1000;
+        storedToken = resp.access_token;
+        tokenExpiry = Date.now() + ((resp.expires_in || 3600) - 300) * 1000;
         localStorage.setItem('driveToken',       storedToken);
-        localStorage.setItem('driveTokenExpiry', tokenExpiry);
+        localStorage.setItem('driveTokenExpiry', String(tokenExpiry));
+        // Also register it with gapi so gapi.client calls work
+        gapi.client.setToken({ access_token: storedToken });
     }
 
     function isTokenValid() {
-        return storedToken && Date.now() < tokenExpiry;
+        return !!storedToken && Date.now() < tokenExpiry;
     }
 
     function setSyncStatus(status, email) {
@@ -385,14 +392,15 @@
     function checkReady() {
         if (gapiInited && gsiInited) {
             setSyncStatus('disconnected');
-            // If we have a valid stored token, restore it immediately — no popup needed
             if (isTokenValid() && lastSignedInEmail) {
+                // Restore stored token into gapi — then pull latest cloud data
                 gapi.client.setToken({ access_token: storedToken });
-                autoUpload('download'); // pull latest from Drive on load
+                autoUpload('download');
             } else if (lastSignedInEmail) {
-                // Token expired — try silent refresh using the cached email hint
+                // Token expired — silently get a new one
                 attemptSilentRefresh();
             }
+            // else: never connected before, just show Sync button
         }
     }
 
@@ -419,20 +427,24 @@
         try { tc.requestAccessToken({ prompt: '' }); } catch(e) { setSyncStatus('disconnected'); }
     }
 
-    // Sync button: connect (with consent popup) if not already connected
+    // Sync button:
+    //   - If not connected → open Google login
+    //   - If connected → fetch latest from cloud
     function handleAuthClick() {
         if (!gapiInited || !gsiInited) {
             alert("Still loading Google libraries, please try again.");
             return;
         }
-        if (gapi.client.getToken()) return; // already connected
-
+        if (getToken()) {
+            // Already connected — re-fetch from cloud
+            autoUpload('download');
+            return;
+        }
         const tc = google.accounts.oauth2.initTokenClient({
             client_id: CLIENT_ID, scope: SCOPES,
             callback: async (resp) => {
                 if (resp.error) { console.error("Auth Error:", resp); setSyncStatus('error'); return; }
                 saveToken(resp);
-                gapi.client.setToken(resp);
                 await autoUpload('connect');
             }
         });
@@ -441,7 +453,7 @@
 
     // Debounced auto-sync after every data change
     function scheduleAutoSync(delay = 2000) {
-        if (!gapi.client.getToken()) return;
+        if (!getToken()) return;
         clearTimeout(autoSyncTimer);
         autoSyncTimer = setTimeout(() => autoUpload('upload'), delay);
     }
@@ -499,7 +511,7 @@
             // Fetch and cache email for display + future silent auth hint
             try {
                 const info = await fetch('https://www.googleapis.com/oauth2/v3/userinfo',
-                    { headers: { Authorization: 'Bearer ' + gapi.client.getToken().access_token } });
+                    { headers: { Authorization: 'Bearer ' + getToken() } });
                 const profile = await info.json();
                 if (profile.email) {
                     lastSignedInEmail = profile.email;
@@ -517,7 +529,7 @@
     }
 
     async function createFile(data) {
-        const token = gapi.client.getToken().access_token;
+        const token = getToken();
         const form  = new FormData();
         form.append('metadata', new Blob([JSON.stringify({ name: 'budget_frost_data.json', parents: ['appDataFolder'] })], { type: 'application/json' }));
         form.append('file',     new Blob([JSON.stringify(data)], { type: 'application/json' }));
@@ -528,7 +540,7 @@
     }
 
     async function updateFile(fileId, data) {
-        const token = gapi.client.getToken().access_token;
+        const token = getToken();
         const res = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,
             { method: 'PATCH', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
         if (!res.ok) throw await res.json();
@@ -551,11 +563,11 @@
     // Re-auth when token expires (tokens last ~1 hour)
     setInterval(() => {
         if (lastSignedInEmail) attemptSilentRefresh();
-    }, 45 * 60 * 1000);
+    }, 50 * 60 * 1000);
 
     // Sync when coming back online
     window.addEventListener('online', () => {
-        if (gapi.client.getToken()) scheduleAutoSync(1000);
+        if (getToken()) scheduleAutoSync(1000);
     });
 
     // ── APP LOGIC ──
