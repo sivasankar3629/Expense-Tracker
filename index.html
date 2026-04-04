@@ -285,7 +285,8 @@
     // ── GOOGLE DRIVE SYNC ──
     let gapiInited   = false;
     let gsiInited    = false;
-    let driveFileId  = localStorage.getItem('driveFileId') || null;
+    let driveFileId       = localStorage.getItem('driveFileId') || null;
+    let lastSignedInEmail = localStorage.getItem('lastSignedInEmail') || '';
     let autoSyncTimer = null;
     let isSyncing    = false;
 
@@ -319,18 +320,35 @@
     }
 
     function disconnectDrive() {
-        if (!confirm("Disconnect Google Drive? Your local data stays safe. You can reconnect any account anytime.")) return;
-        // Revoke the token with Google
+        if (!confirm("Sign out and clear all local data?\n\nYour data stays safe in Google Drive. Signing in again will restore it.")) return;
+
+        // Revoke token with Google
         const token = gapi.client.getToken();
         if (token) {
             google.accounts.oauth2.revoke(token.access_token, () => {});
             gapi.client.setToken(null);
         }
-        // Clear cached Drive file reference
-        driveFileId = null;
-        localStorage.removeItem('driveFileId');
+
+        // Clear all local state
+        driveFileId       = null;
+        lastSignedInEmail = '';
         clearTimeout(autoSyncTimer);
+        localStorage.removeItem('driveFileId');
+        localStorage.removeItem('lastSignedInEmail');
+
+        // Reset data to defaults
+        categories = [
+            { id: 'needs', name: 'Daily Needs', limit: 6000, balance: 6000, pIndex: 0 },
+            { id: 'wants', name: 'Wants',       limit: 7150, balance: 7150, pIndex: 1 }
+        ];
+        history    = [];
+        storedMonth = new Date().toISOString().slice(0, 7);
+        localStorage.setItem('myCats',       JSON.stringify(categories));
+        localStorage.setItem('history',      JSON.stringify(history));
+        localStorage.setItem('currentMonth', storedMonth);
+
         setSyncStatus('disconnected');
+        updateUI();
     }
 
     function gapiLoaded() {
@@ -349,23 +367,23 @@
     function checkReady() {
         if (gapiInited && gsiInited) {
             setSyncStatus('disconnected');
-            // If we already have a file ID cached, try a silent token refresh on load
-            if (driveFileId) attemptSilentAuth();
+            // If we have a cached account, silently re-auth on load
+            if (driveFileId && lastSignedInEmail) attemptSilentAuth();
         }
     }
 
-    // Silent auth: no UI prompt, just tries to get a token in the background.
-    // Will silently fail (no popup) if the user hasn't connected before.
+    // Silent auth on page load — uses the cached email as a hint so Google
+    // refreshes the token without showing any popup or account picker.
     function attemptSilentAuth() {
-        if (!gapiInited || !gsiInited) return;
+        if (!gapiInited || !gsiInited || !lastSignedInEmail) return;
         const tc = google.accounts.oauth2.initTokenClient({
             client_id: CLIENT_ID, scope: SCOPES,
-            prompt: '',   // empty = no consent screen, silent only
+            hint: lastSignedInEmail, // tells Google exactly which account to use
+            prompt: '',              // no UI shown
             callback: async (resp) => {
-                if (resp.error || !resp.access_token) return; // silent fail
+                if (resp.error || !resp.access_token) return; // silently give up
                 gapi.client.setToken(resp);
-                // Silent re-auth on load: check Drive and download if needed
-                await autoUpload(false);
+                await autoUpload(true); // just refresh token + upload, don't re-download
             }
         });
         try { tc.requestAccessToken({ prompt: '' }); } catch(e) { /* silent */ }
@@ -442,6 +460,10 @@
                 const info = await fetch('https://www.googleapis.com/oauth2/v3/userinfo',
                     { headers: { Authorization: 'Bearer ' + gapi.client.getToken().access_token } });
                 const profile = await info.json();
+                if (profile.email) {
+                    lastSignedInEmail = profile.email;
+                    localStorage.setItem('lastSignedInEmail', profile.email);
+                }
                 setSyncStatus('connected', profile.email || '');
             } catch(e) { setSyncStatus('connected'); }
         } catch (err) {
