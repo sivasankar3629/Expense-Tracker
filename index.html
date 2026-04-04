@@ -264,7 +264,7 @@ function handleAuthClick() {
         } catch (err) {
             console.error("Detailed Sync Error:", err);
             // This alert will tell us if it's still a 403
-            alert("Sync failed: " + (err.result?.error?.message || "Check Console"));
+            alert("Sync failed: " + (err?.error?.message || err.result?.error?.message || JSON.stringify(err)));
         } finally {
             document.getElementById('sync-btn').innerHTML = '<i class="fa-solid fa-cloud"></i> Sync';
             updateUI();
@@ -276,26 +276,36 @@ function handleAuthClick() {
     // ==========================================
 
     async function createFile(data) {
-        const metadata = {
-            name: 'budget_frost_data.json',
-            parents: ['appDataFolder']
-        };
-        const file = new Blob([JSON.stringify(data)], {type: 'application/json'});
-        
-        // This sends the metadata (name) and the actual data (the file) to Google
-        return await gapi.client.drive.files.create({
-            resource: metadata,
-            media: { mimeType: 'application/json', body: file }
-        });
+        const token = gapi.client.getToken().access_token;
+        const metadata = { name: 'budget_frost_data.json', parents: ['appDataFolder'] };
+        const body = JSON.stringify(data);
+
+        const form = new FormData();
+        form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+        form.append('file',     new Blob([body],                      { type: 'application/json' }));
+
+        const res = await fetch(
+            'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
+            { method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: form }
+        );
+        if (!res.ok) throw await res.json();
+        return res.json();
     }
 
     async function updateFile(fileId, data) {
-        const file = new Blob([JSON.stringify(data)], {type: 'application/json'});
-        
-        return await gapi.client.drive.files.update({
-            fileId: fileId,
-            media: { mimeType: 'application/json', body: file }
-        });
+        const token = gapi.client.getToken().access_token;
+        const body  = JSON.stringify(data);
+
+        const res = await fetch(
+            `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,
+            {
+                method: 'PATCH',
+                headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+                body
+            }
+        );
+        if (!res.ok) throw await res.json();
+        return res.json();
     }
 
     async function downloadFile(fileId) {
