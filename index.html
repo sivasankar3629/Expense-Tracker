@@ -11,14 +11,10 @@
     
     <style>
         :root {
-            /* Full Glass Palette */
             --glass-bg: rgba(255, 255, 255, 0.45);
             --glass-border: rgba(255, 255, 255, 0.3);
             --glass-blur: blur(20px);
-            
-            --primary: #4f46e5; /* Indigo */
-            --needs: #059669; /* Emerald */
-            --wants: #d97706; /* Amber */
+            --primary: #4f46e5; 
             --text-on-glass: #1e293b;
             --sub-text: #475569;
         }
@@ -32,15 +28,10 @@
 
         body { 
             font-family: 'Poppins', sans-serif; 
-            margin: 0;
-            padding: 20px; 
-            display: flex; 
-            justify-content: center; 
-            min-height: 100vh;
-            color: var(--text-on-glass);
+            margin: 0; padding: 20px; 
+            display: flex; justify-content: center; 
+            min-height: 100vh; color: var(--text-on-glass);
             transition: all 0.3s ease;
-            
-            /* Background Image (Abstract Gradient) */
             background-color: #e2e8f0;
             background-image: linear-gradient(135deg, #f0f9ff 10%, #dbeafe 40%, #ddd6fe 80%, #f1f5f9 100%);
             background-attachment: fixed;
@@ -51,26 +42,14 @@
             background-image: linear-gradient(135deg, #020617 10%, #1e293b 50%, #111827 90%, #020617 100%);
         }
 
-        /* The main "Glass" container */
         .container { 
-            width: 100%; 
-            max-width: 420px; 
-            background: var(--glass-bg);
-            backdrop-filter: var(--glass-blur);
-            -webkit-backdrop-filter: var(--glass-blur);
-            padding: 24px;
-            border-radius: 28px;
-            border: 1px solid var(--glass-border);
+            width: 100%; max-width: 420px; 
+            background: var(--glass-bg); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+            padding: 24px; border-radius: 28px; border: 1px solid var(--glass-border);
             box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.15);
         }
 
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-        }
-
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
         h2 { margin: 0; font-size: 1.4rem; font-weight: 700; color: var(--primary); letter-spacing: -0.015em; }
 
         .dark-mode-toggle {
@@ -79,94 +58,65 @@
         }
         body.dark-mode .dark-mode-toggle { border-color: rgba(255,255,255,0.1); }
 
-        /* Translucent Budget Cards */
+        /* Dynamic Cards */
         .budget-card {
-            padding: 20px;
-            border-radius: 22px;
-            margin-bottom: 16px;
-            color: #ffffff; /* Text inside cards is always white */
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 6px 20px -5px rgba(0,0,0,0.1);
+            padding: 20px; border-radius: 22px; margin-bottom: 16px; color: #ffffff; 
+            position: relative; overflow: hidden; box-shadow: 0 6px 20px -5px rgba(0,0,0,0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
-            background-size: cover;
         }
-
-        .needs-box { background: linear-gradient(135deg, #10b981ee, #059669); }
-        .wants-box { background: linear-gradient(135deg, #f59e0bee, #d97706); }
-
-        .card-label { font-size: 0.85rem; font-weight: 600; opacity: 0.9; margin-bottom: 4px; }
+        .card-label { font-size: 0.85rem; font-weight: 600; opacity: 0.9; margin-bottom: 4px; display: flex; justify-content: space-between; }
         .amount { font-size: 2.1rem; font-weight: 700; margin-bottom: 12px; letter-spacing: -0.015em; }
         
-        .progress-container {
-            background: rgba(255, 255, 255, 0.2);
-            height: 7px;
-            border-radius: 10px;
-        }
-        .progress-bar {
-            height: 100%;
-            background: white;
-            border-radius: 10px;
-            transition: width 0.7s cubic-bezier(0.34, 1.56, 0.64, 1); /* Bounce animation */
-        }
+        .progress-container { background: rgba(255, 255, 255, 0.2); height: 7px; border-radius: 10px; }
+        .progress-bar { height: 100%; background: white; border-radius: 10px; transition: width 0.7s cubic-bezier(0.34, 1.56, 0.64, 1); }
 
-        /* Transaction Form (Glass Panel) */
+        /* Forms */
         .input-group { 
-            background: rgba(255,255,255,0.2);
-            border-radius: 20px; 
-            padding: 20px; 
-            margin-bottom: 24px; 
-            border: 1px solid var(--glass-border); 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+            background: rgba(255,255,255,0.2); border-radius: 20px; padding: 20px; margin-bottom: 24px; 
+            border: 1px solid var(--glass-border); box-shadow: 0 4px 15px rgba(0,0,0,0.02);
         }
         body.dark-mode .input-group { background: rgba(0,0,0,0.1); }
         
-        label { display: block; font-size: 0.75rem; font-weight: 700; margin-bottom: 10px; text-transform: uppercase; color: var(--sub-text); letter-spacing: 0.05em; }
+        label { display: block; font-size: 0.75rem; font-weight: 700; margin-bottom: 10px; text-transform: uppercase; color: var(--sub-text); }
         
         input, select { 
             width: 100%; padding: 13px; margin-bottom: 14px; border: 1px solid var(--glass-border);
             border-radius: 12px; font-family: inherit; font-size: 1rem;
-            background: rgba(255,255,255,0.3); color: var(--text-on-glass); box-sizing: border-box;
-            transition: border-color 0.2s;
+            background: rgba(255,255,255,0.3); color: var(--text-on-glass); box-sizing: border-box; outline: none;
         }
         body.dark-mode input, body.dark-mode select { background: rgba(0,0,0,0.1); }
-        input:focus, select:focus { border-color: var(--primary); outline: none; }
+        input:focus, select:focus { border-color: var(--primary); }
 
         button.main-btn {
-            background: var(--primary); color: white; border: none; padding: 15px;
-            border-radius: 14px; width: 100%; font-weight: 700; font-size: 1rem;
-            cursor: pointer; transition: transform 0.1s, box-shadow 0.2s, background 0.2s;
-            box-shadow: 0 4px 15px -1px rgba(79, 70, 229, 0.4);
+            background: var(--primary); color: white; border: none; padding: 15px; border-radius: 14px; 
+            width: 100%; font-weight: 700; font-size: 1rem; cursor: pointer; transition: transform 0.1s;
+            box-shadow: 0 4px 15px -1px rgba(79, 70, 229, 0.4); margin-bottom: 10px;
         }
         button.main-btn:active { transform: scale(0.97); }
-        button.main-btn:hover { background: #4338ca; box-shadow: 0 6px 20px -1px rgba(79, 70, 229, 0.6); }
 
         /* History */
         .history { margin-top: 24px; border-top: 1px solid var(--glass-border); padding-top: 20px; }
-        .history-item {
-            display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(0,0,0,0.05);
-        }
+        .history-item { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(0,0,0,0.05); }
         body.dark-mode .history-item { border-bottom-color: rgba(255,255,255,0.05); }
-        
-        .icon-circle {
-            width: 36px; height: 36px; border-radius: 10px; display: flex;
-            align-items: center; justify-content: center; margin-right: 14px;
-            box-shadow: inset 0 2px 5px rgba(0,0,0,0.02);
-        }
+        .icon-circle { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 14px; }
         .item-info { flex: 1; }
-        .item-name { font-weight: 600; font-size: 0.9rem; margin-bottom: 1px; }
+        .item-name { font-weight: 600; font-size: 0.9rem; }
         .item-cat { font-size: 0.7rem; color: var(--sub-text); font-weight: 600; }
         .item-amt { font-weight: 700; color: #ef4444; font-size: 0.95rem; }
 
-        /* Footer Settings */
+        /* Settings Area */
         .settings-btn {
             background: none; border: none; color: var(--sub-text); font-size: 0.75rem;
-            margin-top: 24px; cursor: pointer; text-decoration: none; width: 100%; font-weight: 600;
+            margin-top: 24px; cursor: pointer; width: 100%; font-weight: 600;
         }
         #settings-area { display: none; padding-top: 15px; border-top: 1px dashed var(--glass-border); margin-top: 10px; }
-
-        .footer-btns { display: flex; gap: 10px; margin-top: 15px; }
-        .reset-btn { background: rgba(0,0,0,0.05); color: var(--text-on-glass); font-size: 0.75rem; padding: 10px; flex: 1; }
+        
+        .cat-edit-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+        .cat-edit-row input { margin-bottom: 0; padding: 10px; font-size: 0.9rem; }
+        .del-btn { background: #ef4444; color: white; border: none; padding: 10px 15px; border-radius: 10px; cursor: pointer; font-weight: bold; }
+        
+        .divider { height: 1px; background: var(--glass-border); margin: 20px 0; }
+        .reset-btn { background: rgba(0,0,0,0.05); color: var(--text-on-glass); box-shadow: none; }
         body.dark-mode .reset-btn { background: rgba(255,255,255,0.05); }
     </style>
 </head>
@@ -174,85 +124,115 @@
 
 <div class="container">
     <div class="header">
-        <h2><i class="fa-solid fa-wallet" style="color: var(--primary); font-size: 1.2rem;"></i> Budget Frost</h2>
+        <h2><i class="fa-solid fa-wallet" style="color: var(--primary);"></i> Budget Frost</h2>
         <button class="dark-mode-toggle" onclick="toggleDark()"><i class="fa-solid fa-cloud-moon"></i></button>
     </div>
 
-    <div class="budget-card needs-box">
-        <div class="card-label">Daily Needs Remaining</div>
-        <div class="amount" id="needsDisplay">₹0</div>
-        <div class="progress-container">
-            <div class="progress-bar" id="needsProgress" style="width: 100%"></div>
-        </div>
-    </div>
-
-    <div class="budget-card wants-box">
-        <div class="card-label">Wants Remaining</div>
-        <div class="amount" id="wantsDisplay">₹0</div>
-        <div class="progress-container">
-            <div class="progress-bar" id="wantsProgress" style="width: 100%"></div>
-        </div>
-    </div>
+    <!-- Dynamic Cards render here -->
+    <div id="cards-container"></div>
 
     <div class="input-group">
         <label>New Expense</label>
-        <input type="text" id="desc" placeholder="Lunch at the cafeteria">
+        <input type="text" id="desc" placeholder="What did you buy?">
         <input type="number" id="amt" placeholder="Amount (₹)" inputmode="decimal">
-        <select id="cat">
-            <option value="needs">Daily Need (Grocery/Travel)</option>
-            <option value="wants">Want / Lifestyle (Coffee/Fun)</option>
-        </select>
-        <button class="main-btn" onclick="addEntry()"><i class="fa-solid fa-circle-plus"></i> &nbsp;Record Transaction</button>
+        <select id="catSelect"></select>
+        <button class="main-btn" onclick="addEntry()"><i class="fa-solid fa-plus"></i> Record Transaction</button>
     </div>
 
-    <div class="history" id="historyList">
-        <label>Activity</label>
-    </div>
+    <div class="history" id="historyList"></div>
 
-    <button class="settings-btn" onclick="toggleSettings()"><i class="fa-solid fa-gears"></i> &nbsp;DATA & LIMITS</button>
+    <button class="settings-btn" onclick="toggleSettings()"><i class="fa-solid fa-gears"></i> MANAGE CATEGORIES & LIMITS</button>
     
     <div id="settings-area">
-        <label>Adjust Monthly Targets</label>
-        <input type="number" id="setNeeds" placeholder="Needs Target (e.g. 6000)">
-        <input type="number" id="setWants" placeholder="Wants Target (e.g. 7150)">
-        <div class="footer-btns">
-            <button class="main-btn" style="background: #1e293b; box-shadow: none;" onclick="setNewLimits()">Apply</button>
-            <button class="main-btn reset-btn" onclick="clearAll()">Reset Month</button>
-        </div>
+        <label>Edit Existing Limits</label>
+        <div id="editList"></div>
+        <button class="main-btn" style="background: #1e293b; box-shadow: none; padding: 12px; font-size: 0.9rem;" onclick="saveLimits()">Save Limit Changes</button>
+        
+        <div class="divider"></div>
+        
+        <label>Add New Category</label>
+        <input type="text" id="newCatName" placeholder="Category Name (e.g. Travel)">
+        <input type="number" id="newCatLimit" placeholder="Monthly Limit (₹)">
+        <button class="main-btn" style="background: #10b981; box-shadow: none; padding: 12px; font-size: 0.9rem;" onclick="addNewCategory()">Create Category</button>
+
+        <div class="divider"></div>
+        <button class="main-btn reset-btn" onclick="clearAll()">Reset All Balances for New Month</button>
     </div>
 </div>
 
 <script>
-    let needsLimit = parseFloat(localStorage.getItem('needsLimit')) || 6000;
-    let wantsLimit = parseFloat(localStorage.getItem('wantsLimit')) || 7150;
-    let needs = parseFloat(localStorage.getItem('needs')) ?? needsLimit;
-    let wants = parseFloat(localStorage.getItem('wants')) ?? wantsLimit;
+    // Premium Color Palettes for Auto-Assignment
+    const palettes = [
+        { light: '#10b981ee', dark: '#059669', base: '#10b981', icon: 'fa-cart-shopping' }, // Emerald
+        { light: '#f59e0bee', dark: '#d97706', base: '#f59e0b', icon: 'fa-star' },          // Amber
+        { light: '#6366f1ee', dark: '#4f46e5', base: '#6366f1', icon: 'fa-bolt' },          // Indigo
+        { light: '#ec4899ee', dark: '#db2777', base: '#ec4899', icon: 'fa-heart' },         // Pink
+        { light: '#06b6d4ee', dark: '#0891b2', base: '#06b6d4', icon: 'fa-plane' }          // Cyan
+    ];
+
+    // Default Initialization
+    let defaultCats = [
+        { id: 'needs', name: 'Daily Needs', limit: 6000, balance: 6000, pIndex: 0 },
+        { id: 'wants', name: 'Wants', limit: 7150, balance: 7150, pIndex: 1 }
+    ];
+
+    let categories = JSON.parse(localStorage.getItem('myCats')) || defaultCats;
     let history = JSON.parse(localStorage.getItem('history')) || [];
 
-    function update() {
-        document.getElementById('needsDisplay').innerText = '₹' + Math.max(0, needs).toLocaleString();
-        document.getElementById('wantsDisplay').innerText = '₹' + Math.max(0, wants).toLocaleString();
-        
-        document.getElementById('needsProgress').style.width = (Math.max(0, needs) / needsLimit * 100) + '%';
-        document.getElementById('wantsProgress').style.width = (Math.max(0, wants) / wantsLimit * 100) + '%';
-
-        localStorage.setItem('needs', needs);
-        localStorage.setItem('wants', wants);
+    function updateUI() {
+        // Save state
+        localStorage.setItem('myCats', JSON.stringify(categories));
         localStorage.setItem('history', JSON.stringify(history));
+
+        const cardsContainer = document.getElementById('cards-container');
+        const selectBox = document.getElementById('catSelect');
+        const editList = document.getElementById('editList');
+        const historyList = document.getElementById('historyList');
+
+        cardsContainer.innerHTML = '';
+        selectBox.innerHTML = '';
+        editList.innerHTML = '';
+
+        // Render Categories (Cards, Dropdown, Settings)
+        categories.forEach(cat => {
+            const p = palettes[cat.pIndex % palettes.length];
+            const percent = Math.min(100, Math.max(0, (cat.balance / cat.limit) * 100));
+
+            // 1. Generate Card
+            cardsContainer.innerHTML += `
+                <div class="budget-card" style="background: linear-gradient(135deg, ${p.light}, ${p.dark})">
+                    <div class="card-label"><span>${cat.name} Remaining</span> <i class="fa-solid ${p.icon}"></i></div>
+                    <div class="amount">₹${Math.max(0, cat.balance).toLocaleString()}</div>
+                    <div class="progress-container"><div class="progress-bar" style="width: ${percent}%"></div></div>
+                </div>`;
+
+            // 2. Generate Dropdown Option
+            selectBox.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+
+            // 3. Generate Settings Editor Row
+            editList.innerHTML += `
+                <div class="cat-edit-row">
+                    <input type="text" value="${cat.name}" disabled style="flex:1.5; background:transparent; border:none; opacity:0.8;">
+                    <input type="number" id="limit_${cat.id}" value="${cat.limit}" style="flex:1;">
+                    <button class="del-btn" onclick="deleteCategory('${cat.id}')"><i class="fa-solid fa-xmark"></i></button>
+                </div>`;
+        });
+
+        // 4. Render History
+        historyList.innerHTML = '<label>Recent Activity</label>';
+        if(history.length === 0) historyList.innerHTML += '<div style="font-size:0.8rem; opacity:0.6;">No recent transactions.</div>';
         
-        const list = document.getElementById('historyList');
-        list.innerHTML = '<label>Activity</label>';
         history.slice().reverse().forEach(item => {
-            const icon = item.cat === 'needs' ? 'fa-cart-shopping' : 'fa-star';
-            const color = item.cat === 'needs' ? '#10b981' : '#f59e0b';
-            list.innerHTML += `
+            const cat = categories.find(c => c.id === item.catId);
+            const p = cat ? palettes[cat.pIndex % palettes.length] : palettes[0];
+            const catName = cat ? cat.name : "Deleted Category";
+
+            historyList.innerHTML += `
                 <div class="history-item">
-                    <div class="icon-circle" style="background: ${color}10; color: ${color}">
-                        <i class="fa-solid ${icon}"></i>
-                    </div>
+                    <div class="icon-circle" style="background: ${p.base}20; color: ${p.base}"><i class="fa-solid ${p.icon}"></i></div>
                     <div class="item-info">
-                        <div class="item-name">${item.name}</div>
-                        <div class="item-cat">${item.cat.toUpperCase()}</div>
+                        <div class="item-name">${item.desc}</div>
+                        <div class="item-cat">${catName.toUpperCase()}</div>
                     </div>
                     <div class="item-amt">-₹${item.val}</div>
                 </div>`;
@@ -260,31 +240,74 @@
     }
 
     function addEntry() {
-        const name = document.getElementById('desc').value || "Expense";
+        const desc = document.getElementById('desc').value || "Expense";
         const val = parseFloat(document.getElementById('amt').value);
-        const cat = document.getElementById('cat').value;
-        if (isNaN(val) || val <= 0) return;
-        if (cat === 'needs') { needs -= val; } else { wants -= val; }
-        history.push({name, val, cat});
+        const catId = document.getElementById('catSelect').value;
+
+        if (isNaN(val) || val <= 0 || !catId) return;
+
+        // Deduct from balance
+        let catIndex = categories.findIndex(c => c.id === catId);
+        if(catIndex > -1) {
+            categories[catIndex].balance -= val;
+        }
+
+        history.push({ desc: desc, val: val, catId: catId });
         if (history.length > 5) history.shift();
+
         document.getElementById('desc').value = '';
         document.getElementById('amt').value = '';
-        update();
+        updateUI();
     }
 
-    function setNewLimits() {
-        const nLimit = parseFloat(document.getElementById('setNeeds').value);
-        const wLimit = parseFloat(document.getElementById('setWants').value);
-        if (!isNaN(nLimit)) { needsLimit = nLimit; needs = nLimit; localStorage.setItem('needsLimit', nLimit); }
-        if (!isNaN(wLimit)) { wantsLimit = wLimit; wants = wLimit; localStorage.setItem('wantsLimit', wLimit); }
-        update();
-        toggleSettings();
+    function addNewCategory() {
+        const name = document.getElementById('newCatName').value.trim();
+        const limit = parseFloat(document.getElementById('newCatLimit').value);
+        
+        if (!name || isNaN(limit) || limit <= 0) {
+            alert("Please provide a valid name and limit.");
+            return;
+        }
+
+        const newId = 'cat_' + Date.now();
+        const pIndex = categories.length; // Assigns next color in sequence
+
+        categories.push({ id: newId, name: name, limit: limit, balance: limit, pIndex: pIndex });
+        
+        document.getElementById('newCatName').value = '';
+        document.getElementById('newCatLimit').value = '';
+        updateUI();
+    }
+
+    function saveLimits() {
+        categories.forEach(cat => {
+            const input = document.getElementById('limit_' + cat.id);
+            if (input) {
+                const newLimit = parseFloat(input.value);
+                if (!isNaN(newLimit) && newLimit > 0) {
+                    // Adjust balance to reflect new limit (e.g. if limit increases by 1000, balance increases by 1000)
+                    const diff = newLimit - cat.limit;
+                    cat.limit = newLimit;
+                    cat.balance += diff;
+                }
+            }
+        });
+        updateUI();
+        alert("Limits updated successfully!");
+    }
+
+    function deleteCategory(id) {
+        if(confirm("Are you sure you want to delete this category?")) {
+            categories = categories.filter(c => c.id !== id);
+            updateUI();
+        }
     }
 
     function clearAll() {
-        if(confirm("Confirm Reset?")) {
-            needs = needsLimit; wants = wantsLimit; history = [];
-            update();
+        if(confirm("Start a new month? This will reset all balances back to their limits and clear history.")) {
+            categories.forEach(cat => cat.balance = cat.limit);
+            history = [];
+            updateUI();
         }
     }
 
@@ -299,7 +322,7 @@
     }
 
     if(localStorage.getItem('dark') === 'true') document.body.classList.add('dark-mode');
-    update();
+    updateUI();
 </script>
 
 </body>
