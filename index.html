@@ -199,14 +199,24 @@
     function gsiLoaded() { tokenClient = google.accounts.oauth2.initTokenClient({ client_id: CLIENT_ID, scope: SCOPES, callback: '' }); gsiInited = true; checkReady(); }
     function checkReady() { if(gapiInited && gsiInited) document.getElementById('sync-btn').style.opacity = '1'; }
 
-    function handleAuthClick() {
+function handleAuthClick() {
         tokenClient.callback = async (resp) => {
-            if (resp.error) return;
+            if (resp.error !== undefined) throw (resp);
+            
+            // --- ADD THIS LINE BELOW ---
+            gapi.client.setToken(resp); 
+            // ---------------------------
+
             document.getElementById('sync-btn').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
             await syncWithDrive();
             document.getElementById('sync-btn').innerHTML = '<i class="fa-solid fa-check"></i> Synced';
         };
-        tokenClient.requestAccessToken({prompt: gapi.client.getToken() === null ? 'consent' : ''});
+
+        if (gapi.client.getToken() === null) {
+            tokenClient.requestAccessToken({prompt: 'consent'});
+        } else {
+            tokenClient.requestAccessToken({prompt: ''});
+        }
     }
 
     async function syncWithDrive() {
