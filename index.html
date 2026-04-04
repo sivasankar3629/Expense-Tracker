@@ -271,6 +271,51 @@ function handleAuthClick() {
         }
     }
 
+    // ==========================================
+    // 3. DRIVE OPERATION HELPERS (The Workers)
+    // ==========================================
+
+    async function createFile(data) {
+        const metadata = {
+            name: 'budget_frost_data.json',
+            parents: ['appDataFolder']
+        };
+        const file = new Blob([JSON.stringify(data)], {type: 'application/json'});
+        
+        // This sends the metadata (name) and the actual data (the file) to Google
+        return await gapi.client.drive.files.create({
+            resource: metadata,
+            media: { mimeType: 'application/json', body: file }
+        });
+    }
+
+    async function updateFile(fileId, data) {
+        const file = new Blob([JSON.stringify(data)], {type: 'application/json'});
+        
+        return await gapi.client.drive.files.update({
+            fileId: fileId,
+            media: { mimeType: 'application/json', body: file }
+        });
+    }
+
+    async function downloadFile(fileId) {
+        const response = await gapi.client.drive.files.get({
+            fileId: fileId,
+            alt: 'media'
+        });
+        
+        const cloudData = response.result;
+        if (cloudData && cloudData.categories) {
+            categories = cloudData.categories;
+            history = cloudData.history;
+            storedMonth = cloudData.month;
+            // Save to local storage so the UI updates correctly
+            localStorage.setItem('myCats', JSON.stringify(categories));
+            localStorage.setItem('history', JSON.stringify(history));
+            localStorage.setItem('currentMonth', storedMonth);
+        }
+    }
+
     // --- APP LOGIC ---
     function checkMonthReset() {
         const now = new Date().toISOString().slice(0, 7);
