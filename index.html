@@ -201,48 +201,73 @@
 
 function handleAuthClick() {
         tokenClient.callback = async (resp) => {
-            if (resp.error !== undefined) throw (resp);
+            if (resp.error !== undefined) {
+                console.error("Auth Error:", resp);
+                return;
+            }
             
-            // --- ADD THIS LINE BELOW ---
+            // LOG FOR DEBUGGING: Let's see if we actually got a token
+            console.log("Access Token Received:", resp.access_token);
+
+            // Force GAPI to use the new token
             gapi.client.setToken(resp); 
-            // ---------------------------
 
             document.getElementById('sync-btn').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-            await syncWithDrive();
-            document.getElementById('sync-btn').innerHTML = '<i class="fa-solid fa-check"></i> Synced';
+            
+            // Small delay to ensure the token is registered
+            setTimeout(async () => {
+                await syncWithDrive();
+            }, 100);
         };
 
-        if (gapi.client.getToken() === null) {
-            tokenClient.requestAccessToken({prompt: 'consent'});
-        } else {
-            tokenClient.requestAccessToken({prompt: ''});
-        }
+        // Always request a fresh token for now to be safe
+        tokenClient.requestAccessToken({prompt: 'consent'});
     }
 
     async function syncWithDrive() {
-        const resp = await gapi.client.drive.files.list({ spaces: 'appDataFolder', fields: 'files(id, name)', pageSize: 1 });
-        const files = resp.result.files;
-        const data = { categories, history, month: storedMonth };
-
-        if (files.length > 0) {
-            const fileId = files[0].id;
-            if (confirm("Upload local data to cloud (OK) or Download from cloud (Cancel)?")) {
-                const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
-                await gapi.client.drive.files.update({ fileId: fileId, media: { mimeType: 'application/json', body: blob } });
-            } else {
-                const cloudResp = await gapi.client.drive.files.get({ fileId: fileId, alt: 'media' });
-                if (cloudResp.result.categories) {
-                    categories = cloudResp.result.categories;
-                    history = cloudResp.result.history;
-                    storedMonth = cloudResp.result.month;
-                    updateUI();
-                }
+        try {
+            // Check if the token is actually set in GAPI
+            const currentToken = gapi.client.getToken();
+            if (!currentToken) {
+                console.error("GAPI has no token! This is why it's failing.");
+                alert("Auth failed: Token not registered.");
+                return;
             }
-        } else {
-            const metadata = { name: 'budget_frost_data.json', parents: ['appDataFolder'] };
-            const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
-            await gapi.client.drive.files.create({ resource: metadata, media: { mimeType: 'application/json', body: blob } });
-            alert("Cloud file created and synced!");
+
+            // Attempt to list files
+            const response = await gapi.client.drive.files.list({
+                spaces: 'appDataFolder',
+                fields: 'files(id, name)',
+                pageSize: 1
+            });
+
+            const files = response.result.files;
+            const appData = {
+                categories: categories,
+                history: history,
+                month: storedMonth
+            };
+
+            if (files && files.length > 0) {
+                const fileId = files[0].id;
+                if (confirm("Cloud data found. OK to UPLOAD local data? (Cancel to DOWNLOAD from Cloud)")) {
+                    await updateFile(fileId, appData);
+                    alert("Cloud Updated!");
+                } else {
+                    await downloadFile(fileId);
+                    alert("Local Data Synced from Cloud!");
+                }
+            } else {
+                await createFile(appData);
+                alert("First sync complete! Data saved to Google Drive.");
+            }
+        } catch (err) {
+            console.error("Detailed Sync Error:", err);
+            // This alert will tell us if it's still a 403
+            alert("Sync failed: " + (err.result?.error?.message || "Check Console"));
+        } finally {
+            document.getElementById('sync-btn').innerHTML = '<i class="fa-solid fa-cloud"></i> Sync';
+            updateUI();
         }
     }
 
