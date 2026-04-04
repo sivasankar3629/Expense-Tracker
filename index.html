@@ -94,14 +94,24 @@
         }
         button.main-btn:active { transform: scale(0.97); }
 
-        /* History */
-        .history { margin-top: 24px; border-top: 1px solid var(--glass-border); padding-top: 20px; }
+        /* History Section with Scroll */
+        .history { 
+            margin-top: 24px; border-top: 1px solid var(--glass-border); 
+            padding-top: 20px; max-height: 280px; overflow-y: auto; padding-right: 5px;
+        }
+        /* Scrollbar Styling */
+        .history::-webkit-scrollbar { width: 5px; }
+        .history::-webkit-scrollbar-track { background: transparent; }
+        .history::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 10px; }
+        body.dark-mode .history::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); }
+
         .history-item { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(0,0,0,0.05); }
         body.dark-mode .history-item { border-bottom-color: rgba(255,255,255,0.05); }
-        .icon-circle { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 14px; }
-        .item-info { flex: 1; }
-        .item-name { font-weight: 600; font-size: 0.9rem; }
-        .item-cat { font-size: 0.7rem; color: var(--sub-text); font-weight: 600; }
+        .icon-circle { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 14px; flex-shrink: 0; }
+        .item-info { flex: 1; min-width: 0; }
+        .item-name { font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .item-cat { font-size: 0.7rem; color: var(--sub-text); font-weight: 600; display: flex; justify-content: space-between; padding-right: 10px; }
+        .item-date { font-weight: 400; opacity: 0.8; }
         .item-amt { font-weight: 700; color: #ef4444; font-size: 0.95rem; }
 
         /* Settings Area */
@@ -156,21 +166,19 @@
         <button class="main-btn" style="background: #10b981; box-shadow: none; padding: 12px; font-size: 0.9rem;" onclick="addNewCategory()">Create Category</button>
 
         <div class="divider"></div>
-        <button class="main-btn reset-btn" onclick="clearAll()">Reset All Balances for New Month</button>
+        <button class="main-btn reset-btn" onclick="manualReset()">Force Manual Reset</button>
     </div>
 </div>
 
 <script>
-    // Premium Color Palettes for Auto-Assignment
     const palettes = [
-        { light: '#10b981ee', dark: '#059669', base: '#10b981', icon: 'fa-cart-shopping' }, // Emerald
-        { light: '#f59e0bee', dark: '#d97706', base: '#f59e0b', icon: 'fa-star' },          // Amber
-        { light: '#6366f1ee', dark: '#4f46e5', base: '#6366f1', icon: 'fa-bolt' },          // Indigo
-        { light: '#ec4899ee', dark: '#db2777', base: '#ec4899', icon: 'fa-heart' },         // Pink
-        { light: '#06b6d4ee', dark: '#0891b2', base: '#06b6d4', icon: 'fa-plane' }          // Cyan
+        { light: '#10b981ee', dark: '#059669', base: '#10b981', icon: 'fa-cart-shopping' }, 
+        { light: '#f59e0bee', dark: '#d97706', base: '#f59e0b', icon: 'fa-star' },          
+        { light: '#6366f1ee', dark: '#4f46e5', base: '#6366f1', icon: 'fa-bolt' },          
+        { light: '#ec4899ee', dark: '#db2777', base: '#ec4899', icon: 'fa-heart' },         
+        { light: '#06b6d4ee', dark: '#0891b2', base: '#06b6d4', icon: 'fa-plane' }          
     ];
 
-    // Default Initialization
     let defaultCats = [
         { id: 'needs', name: 'Daily Needs', limit: 6000, balance: 6000, pIndex: 0 },
         { id: 'wants', name: 'Wants', limit: 7150, balance: 7150, pIndex: 1 }
@@ -178,9 +186,27 @@
 
     let categories = JSON.parse(localStorage.getItem('myCats')) || defaultCats;
     let history = JSON.parse(localStorage.getItem('history')) || [];
+    let storedMonth = localStorage.getItem('currentMonth');
+
+    // Auto-Reset Check
+    function checkMonthReset() {
+        const currentRealMonth = new Date().toISOString().slice(0, 7); // Format: "YYYY-MM"
+        
+        if (!storedMonth) {
+            // First time loading the app
+            storedMonth = currentRealMonth;
+            localStorage.setItem('currentMonth', storedMonth);
+        } else if (storedMonth !== currentRealMonth) {
+            // A new month has started! Reset balances, but keep history.
+            categories.forEach(cat => cat.balance = cat.limit);
+            storedMonth = currentRealMonth;
+            localStorage.setItem('currentMonth', storedMonth);
+            // Save immediately
+            localStorage.setItem('myCats', JSON.stringify(categories));
+        }
+    }
 
     function updateUI() {
-        // Save state
         localStorage.setItem('myCats', JSON.stringify(categories));
         localStorage.setItem('history', JSON.stringify(history));
 
@@ -193,12 +219,10 @@
         selectBox.innerHTML = '';
         editList.innerHTML = '';
 
-        // Render Categories (Cards, Dropdown, Settings)
         categories.forEach(cat => {
             const p = palettes[cat.pIndex % palettes.length];
             const percent = Math.min(100, Math.max(0, (cat.balance / cat.limit) * 100));
 
-            // 1. Generate Card
             cardsContainer.innerHTML += `
                 <div class="budget-card" style="background: linear-gradient(135deg, ${p.light}, ${p.dark})">
                     <div class="card-label"><span>${cat.name} Remaining</span> <i class="fa-solid ${p.icon}"></i></div>
@@ -206,10 +230,8 @@
                     <div class="progress-container"><div class="progress-bar" style="width: ${percent}%"></div></div>
                 </div>`;
 
-            // 2. Generate Dropdown Option
             selectBox.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
 
-            // 3. Generate Settings Editor Row
             editList.innerHTML += `
                 <div class="cat-edit-row">
                     <input type="text" value="${cat.name}" disabled style="flex:1.5; background:transparent; border:none; opacity:0.8;">
@@ -218,21 +240,24 @@
                 </div>`;
         });
 
-        // 4. Render History
         historyList.innerHTML = '<label>Recent Activity</label>';
         if(history.length === 0) historyList.innerHTML += '<div style="font-size:0.8rem; opacity:0.6;">No recent transactions.</div>';
         
         history.slice().reverse().forEach(item => {
             const cat = categories.find(c => c.id === item.catId);
             const p = cat ? palettes[cat.pIndex % palettes.length] : palettes[0];
-            const catName = cat ? cat.name : "Deleted Category";
+            const catName = cat ? cat.name : "Deleted";
+            const dateStr = item.date || "Unknown Date";
 
             historyList.innerHTML += `
                 <div class="history-item">
                     <div class="icon-circle" style="background: ${p.base}20; color: ${p.base}"><i class="fa-solid ${p.icon}"></i></div>
                     <div class="item-info">
                         <div class="item-name">${item.desc}</div>
-                        <div class="item-cat">${catName.toUpperCase()}</div>
+                        <div class="item-cat">
+                            <span>${catName.toUpperCase()}</span>
+                            <span class="item-date">${dateStr}</span>
+                        </div>
                     </div>
                     <div class="item-amt">-₹${item.val}</div>
                 </div>`;
@@ -246,14 +271,21 @@
 
         if (isNaN(val) || val <= 0 || !catId) return;
 
-        // Deduct from balance
         let catIndex = categories.findIndex(c => c.id === catId);
         if(catIndex > -1) {
             categories[catIndex].balance -= val;
         }
 
-        history.push({ desc: desc, val: val, catId: catId });
-        if (history.length > 5) history.shift();
+        // Generate clean date string (e.g., "Oct 24, 2:30 PM")
+        const now = new Date();
+        const timeString = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const dateString = now.toLocaleDateString([], {month: 'short', day: 'numeric'});
+        const fullDate = `${dateString}, ${timeString}`;
+
+        history.push({ desc: desc, val: val, catId: catId, date: fullDate });
+        
+        // Keep up to 50 transactions in history so previous month is visible
+        if (history.length > 50) history.shift(); 
 
         document.getElementById('desc').value = '';
         document.getElementById('amt').value = '';
@@ -270,7 +302,7 @@
         }
 
         const newId = 'cat_' + Date.now();
-        const pIndex = categories.length; // Assigns next color in sequence
+        const pIndex = categories.length; 
 
         categories.push({ id: newId, name: name, limit: limit, balance: limit, pIndex: pIndex });
         
@@ -285,7 +317,6 @@
             if (input) {
                 const newLimit = parseFloat(input.value);
                 if (!isNaN(newLimit) && newLimit > 0) {
-                    // Adjust balance to reflect new limit (e.g. if limit increases by 1000, balance increases by 1000)
                     const diff = newLimit - cat.limit;
                     cat.limit = newLimit;
                     cat.balance += diff;
@@ -303,8 +334,8 @@
         }
     }
 
-    function clearAll() {
-        if(confirm("Start a new month? This will reset all balances back to their limits and clear history.")) {
+    function manualReset() {
+        if(confirm("Force a manual reset? This resets balances to max and wipes all history.")) {
             categories.forEach(cat => cat.balance = cat.limit);
             history = [];
             updateUI();
@@ -321,8 +352,10 @@
         localStorage.setItem('dark', document.body.classList.contains('dark-mode'));
     }
 
+    // Initialize App
     if(localStorage.getItem('dark') === 'true') document.body.classList.add('dark-mode');
-    updateUI();
+    checkMonthReset(); // Check if it's a new month first
+    updateUI();        // Then build the UI
 </script>
 
 </body>
