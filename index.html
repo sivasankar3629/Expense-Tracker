@@ -74,7 +74,7 @@
         .mode-btn {
             background: var(--surface); border: 1px solid var(--stroke);
             padding: 8px 12px; color: var(--sub); border-radius: 12px;
-            cursor: pointer; font-weight: 700; transition: all 0.2s;
+            cursor: pointer; font-weight: 700; transition: all 0.2s; font-family: inherit; font-size: 0.85rem;
         }
         .mode-btn:hover { color: var(--text); border-color: var(--accent); }
 
@@ -94,42 +94,127 @@
             padding: 18px; margin-top: 15px; border: 1px solid var(--stroke);
         }
         .sect-label { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--sub); margin-bottom: 10px; display: block; }
-        
+
         input, select {
             width: 100%; padding: 12px; margin-bottom: 10px;
             border: 1.5px solid var(--stroke); border-radius: 12px;
             font-family: inherit; font-size: 0.95rem; font-weight: 600;
             background: rgba(255,255,255,0.4); color: var(--text); outline: none;
+            -webkit-appearance: none; appearance: none;
         }
         body.dark input, body.dark select { background: rgba(0,0,0,0.2); }
+        input:focus, select:focus { border-color: var(--accent); }
 
         .main-btn {
             background: var(--accent); color: #fff; border: none; padding: 14px;
             border-radius: 14px; width: 100%; font-weight: 800; font-size: 0.95rem;
-            cursor: pointer; transition: transform 0.1s;
+            cursor: pointer; transition: transform 0.1s; font-family: inherit; margin-bottom: 8px;
         }
         .main-btn:active { transform: scale(0.98); }
 
+        /* History */
         .history {
             margin-top: 20px; border-top: 1px solid var(--stroke);
-            padding-top: 15px; max-height: 250px; overflow-y: auto;
+            padding-top: 15px; max-height: 260px; overflow-y: auto; padding-right: 4px;
+        }
+        .history::-webkit-scrollbar { width: 4px; }
+        .history::-webkit-scrollbar-thumb { background: var(--stroke); border-radius: 10px; }
+
+        .history-item-wrapper {
+            position: relative; overflow: hidden; border-radius: 10px; margin-bottom: 2px;
+        }
+        .delete-bg {
+            position: absolute; right: 0; top: 0; bottom: 0; width: 68px;
+            background: linear-gradient(135deg,#e05555,#b02020);
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 1rem; border-radius: 10px;
+            pointer-events: none; opacity: 0; transition: opacity 0.2s;
         }
         .history-item {
-            display: flex; align-items: center; padding: 10px 0;
-            border-bottom: 1px solid var(--stroke);
+            display: flex; align-items: center; padding: 10px 6px;
+            border-bottom: 1px solid var(--stroke); background: transparent;
+            transition: transform 0.2s ease, background 0.15s;
+            position: relative; touch-action: pan-y; border-radius: 10px;
         }
-        .icon-circle { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0; }
+        .history-item:hover { background: rgba(192,57,43,0.04); }
+        .icon-circle { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0; font-size: 0.85rem; }
         .item-info { flex: 1; min-width: 0; }
-        .item-name { font-weight: 700; font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .item-meta { font-size: 0.65rem; color: var(--sub); font-weight: 700; display: flex; justify-content: space-between; }
-        .item-amt { font-weight: 800; color: var(--danger); font-size: 0.9rem; }
+        .item-name { font-weight: 700; font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 2px; }
+        .item-meta { font-size: 0.65rem; color: var(--sub); font-weight: 700; display: flex; justify-content: space-between; padding-right: 8px; }
+        .item-amt { font-weight: 800; color: var(--danger); font-size: 0.9rem; margin-right: 4px; }
+        .delete-btn {
+            background: none; border: none; color: var(--danger);
+            cursor: pointer; padding: 6px 8px; border-radius: 8px;
+            font-size: 0.8rem; opacity: 0; flex-shrink: 0;
+            transition: opacity 0.15s, background 0.15s;
+        }
+        .history-item-wrapper:hover .delete-btn { opacity: 1; }
+        .delete-btn:hover { background: rgba(192,57,43,0.1); }
+        @media (hover: none) { .delete-btn { opacity: 0.4; } }
 
+        .history-item-wrapper.removing {
+            animation: slideOut 0.28s ease forwards; overflow: hidden;
+        }
+        @keyframes slideOut {
+            from { opacity: 1; transform: translateX(0); max-height: 70px; margin-bottom: 2px; }
+            to   { opacity: 0; transform: translateX(50px); max-height: 0; margin-bottom: 0; }
+        }
+
+        /* Settings */
         #settings-area { display: none; padding-top: 15px; border-top: 1px dashed var(--stroke); margin-top: 10px; }
-        .cat-edit-row { display: flex; gap: 8px; margin-bottom: 8px; }
-        .settings-toggle { background: none; border: none; color: var(--sub); font-size: 0.65rem; font-weight: 800; cursor: pointer; width: 100%; padding: 10px; text-transform: uppercase; }
+        .cat-edit-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+        .cat-edit-row input { margin-bottom: 0; flex: 1; }
+        .settings-toggle { background: none; border: none; color: var(--sub); font-size: 0.65rem; font-weight: 800; cursor: pointer; width: 100%; padding: 10px; text-transform: uppercase; font-family: inherit; }
+        .del-cat-btn { background: rgba(192,57,43,0.1); color: var(--danger); border: 1px solid rgba(192,57,43,0.2); padding: 10px 13px; border-radius: 10px; cursor: pointer; font-weight: 800; flex-shrink: 0; transition: background 0.2s; }
+        .del-cat-btn:hover { background: rgba(192,57,43,0.22); }
+        .reset-btn { background: rgba(0,0,0,0.05) !important; color: var(--sub) !important; box-shadow: none !important; border: 1px solid var(--stroke) !important; }
+        body.dark .reset-btn { background: rgba(255,255,255,0.05) !important; }
+
+        /* Delete confirmation modal */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(20,10,0,0.5); backdrop-filter: blur(8px);
+            z-index: 1000; align-items: center; justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-box {
+            background: var(--cream); border: 1px solid var(--card-border);
+            border-radius: 24px; padding: 28px 24px;
+            max-width: 320px; width: 92%;
+            box-shadow: 0 30px 70px rgba(0,0,0,0.2);
+            text-align: center;
+            animation: popIn 0.22s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        @keyframes popIn { from { transform: scale(0.82); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal-icon { width: 52px; height: 52px; border-radius: 16px; background: rgba(192,57,43,0.1); color: var(--danger); font-size: 1.3rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; border: 1px solid rgba(192,57,43,0.2); }
+        .modal-title { font-size: 1.05rem; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+        .modal-desc { font-size: 0.78rem; color: var(--sub); margin-bottom: 14px; line-height: 1.6; }
+        .modal-preview { background: rgba(192,57,43,0.06); border: 1px solid rgba(192,57,43,0.15); border-radius: 10px; padding: 10px 14px; margin-bottom: 20px; font-size: 0.82rem; font-weight: 700; color: var(--text); }
+        .modal-actions { display: flex; gap: 10px; }
+        .modal-cancel { flex: 1; padding: 12px; border-radius: 12px; border: 1.5px solid var(--stroke); background: transparent; color: var(--sub); font-weight: 700; font-size: 0.88rem; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+        .modal-cancel:hover { border-color: var(--accent); color: var(--text); }
+        .modal-confirm { flex: 1; padding: 12px; border-radius: 12px; border: none; background: linear-gradient(135deg,#e05555,#b02020); color: #fff; font-weight: 800; font-size: 0.88rem; cursor: pointer; font-family: inherit; box-shadow: 0 4px 14px rgba(192,57,43,0.3); transition: transform 0.15s; }
+        .modal-confirm:active { transform: scale(0.97); }
+
+        .empty-state { font-size: 0.78rem; color: var(--sub); opacity: 0.7; text-align: center; padding: 16px 0; }
+        .divider { height: 1px; background: var(--stroke); margin: 14px 0; }
     </style>
 </head>
 <body>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal-box">
+        <div class="modal-icon"><i class="fa-solid fa-trash-can"></i></div>
+        <div class="modal-title">Delete Transaction?</div>
+        <div class="modal-desc">The amount will be restored to the category balance.</div>
+        <div class="modal-preview" id="modalPreview">—</div>
+        <div class="modal-actions">
+            <button class="modal-cancel" onclick="closeDeleteModal()">Cancel</button>
+            <button class="modal-confirm" onclick="confirmDelete()"><i class="fa-solid fa-trash-can"></i> Delete</button>
+        </div>
+    </div>
+</div>
 
 <div class="container">
     <div class="header">
@@ -155,32 +240,33 @@
 
     <div class="history" id="historyList"></div>
 
-    <button class="settings-toggle" onclick="toggleSettings()">Manage Categories</button>
+    <button class="settings-toggle" onclick="toggleSettings()"><i class="fa-solid fa-sliders"></i> Manage Categories</button>
     <div id="settings-area">
+        <span class="sect-label">Edit Limits</span>
         <div id="editList"></div>
-        <button class="main-btn" style="background:var(--text); margin-top:10px;" onclick="saveLimits()">Update Limits</button>
-        <div style="height:1px; background:var(--stroke); margin:15px 0;"></div>
+        <button class="main-btn" style="background:var(--text);" onclick="saveLimits()">Update Limits</button>
+        <div class="divider"></div>
         <span class="sect-label">Add New Category</span>
         <input type="text" id="newCatName" placeholder="Name">
         <input type="number" id="newCatLimit" placeholder="Limit (₹)">
-        <button class="main-btn" style="background:var(--accent2);" onclick="addNewCategory()">Create</button>
+        <button class="main-btn" style="background:var(--accent2);" onclick="addNewCategory()">Create Category</button>
+        <div class="divider"></div>
+        <button class="main-btn reset-btn" onclick="manualReset()"><i class="fa-solid fa-rotate-left"></i> Force Manual Reset</button>
     </div>
 </div>
 
 <script>
-    // ==========================================
-    // CONFIGURATION - PASTE YOUR KEYS HERE
-    // ==========================================
-    const API_KEY = 'AIzaSyCbvpwnax8WUt7QYwmSRi_pT86MX6zJgTQ';
+    const API_KEY  = 'AIzaSyCbvpwnax8WUt7QYwmSRi_pT86MX6zJgTQ';
     const CLIENT_ID = '321734619089-ei40f8ffhmtqduqv6d9msllhul0r1bvc.apps.googleusercontent.com';
-    
     const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
     const SCOPES = 'https://www.googleapis.com/auth/drive.appdata';
 
     const palettes = [
         { grad: ['#c2622f','#8f3d10'], base: '#c2622f', icon: 'fa-cart-shopping' },
         { grad: ['#4a7c5f','#2e5c40'], base: '#4a7c5f', icon: 'fa-star' },
-        { grad: ['#8b6914','#6a4e0a'], base: '#c49a25', icon: 'fa-bolt' }
+        { grad: ['#8b6914','#6a4e0a'], base: '#c49a25', icon: 'fa-bolt' },
+        { grad: ['#7a4a8f','#5a2a70'], base: '#9a6ab0', icon: 'fa-heart' },
+        { grad: ['#2a7a8a','#1a5a6a'], base: '#3a9aaa', icon: 'fa-plane' },
     ];
 
     let categories = JSON.parse(localStorage.getItem('myCats')) || [
@@ -189,68 +275,68 @@
     ];
     let history = JSON.parse(localStorage.getItem('history')) || [];
     let storedMonth = localStorage.getItem('currentMonth');
+    let pendingDeleteIndex = null;
 
-    // --- GOOGLE DRIVE SYNC ---
-    let tokenClient;
+    // ── GOOGLE DRIVE SYNC ──
     let gapiInited = false;
-    let gsiInited = false;
+    let gsiInited  = false;
 
-    function gapiLoaded() { gapi.load('client', async () => { await gapi.client.init({ apiKey: API_KEY, discoveryDocs: [DISCOVERY_DOC] }); gapiInited = true; checkReady(); }); }
-    function gsiLoaded() { tokenClient = google.accounts.oauth2.initTokenClient({ client_id: CLIENT_ID, scope: SCOPES, callback: '' }); gsiInited = true; checkReady(); }
-    function checkReady() { if(gapiInited && gsiInited) document.getElementById('sync-btn').style.opacity = '1'; }
+    function gapiLoaded() {
+        gapi.load('client', async () => {
+            await gapi.client.init({ apiKey: API_KEY, discoveryDocs: [DISCOVERY_DOC] });
+            gapiInited = true;
+            checkReady();
+        });
+    }
 
-function handleAuthClick() {
-        tokenClient.callback = async (resp) => {
-            if (resp.error !== undefined) {
-                console.error("Auth Error:", resp);
-                return;
-            }
-            
-            // LOG FOR DEBUGGING: Let's see if we actually got a token
-            console.log("Access Token Received:", resp.access_token);
+    function gsiLoaded() {
+        gsiInited = true;
+        checkReady();
+    }
 
-            // Force GAPI to use the new token
-            gapi.client.setToken(resp); 
+    function checkReady() {
+        if (gapiInited && gsiInited)
+            document.getElementById('sync-btn').style.opacity = '1';
+    }
 
-            document.getElementById('sync-btn').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-            
-            // Small delay to ensure the token is registered
-            setTimeout(async () => {
+    function handleAuthClick() {
+        if (!gapiInited || !gsiInited) {
+            alert("Still loading Google libraries, please try again in a moment.");
+            return;
+        }
+        const tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: CLIENT_ID,
+            scope: SCOPES,
+            callback: async (resp) => {
+                if (resp.error) {
+                    console.error("Auth Error:", resp);
+                    alert("Authentication failed: " + resp.error);
+                    document.getElementById('sync-btn').innerHTML = '<i class="fa-solid fa-cloud"></i> Sync';
+                    return;
+                }
+                gapi.client.setToken(resp);
+                document.getElementById('sync-btn').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Syncing...';
                 await syncWithDrive();
-            }, 100);
-        };
-
-        // Always request a fresh token for now to be safe
-        tokenClient.requestAccessToken({prompt: 'consent'});
+            }
+        });
+        tokenClient.requestAccessToken({ prompt: 'consent' });
     }
 
     async function syncWithDrive() {
         try {
-            // Check if the token is actually set in GAPI
             const currentToken = gapi.client.getToken();
-            if (!currentToken) {
-                console.error("GAPI has no token! This is why it's failing.");
-                alert("Auth failed: Token not registered.");
-                return;
-            }
+            if (!currentToken) { alert("Auth failed: Token not registered."); return; }
 
-            // Attempt to list files
             const response = await gapi.client.drive.files.list({
-                spaces: 'appDataFolder',
-                fields: 'files(id, name)',
-                pageSize: 1
+                spaces: 'appDataFolder', fields: 'files(id, name)', pageSize: 1
             });
 
             const files = response.result.files;
-            const appData = {
-                categories: categories,
-                history: history,
-                month: storedMonth
-            };
+            const appData = { categories, history, month: storedMonth };
 
             if (files && files.length > 0) {
                 const fileId = files[0].id;
-                if (confirm("Cloud data found. OK to UPLOAD local data? (Cancel to DOWNLOAD from Cloud)")) {
+                if (confirm("Cloud data found. OK to UPLOAD local data?\n(Cancel to DOWNLOAD from Cloud)")) {
                     await updateFile(fileId, appData);
                     alert("Cloud Updated!");
                 } else {
@@ -262,8 +348,7 @@ function handleAuthClick() {
                 alert("First sync complete! Data saved to Google Drive.");
             }
         } catch (err) {
-            console.error("Detailed Sync Error:", err);
-            // This alert will tell us if it's still a 403
+            console.error("Sync Error:", err);
             alert("Sync failed: " + (err?.error?.message || err.result?.error?.message || JSON.stringify(err)));
         } finally {
             document.getElementById('sync-btn').innerHTML = '<i class="fa-solid fa-cloud"></i> Sync';
@@ -271,143 +356,187 @@ function handleAuthClick() {
         }
     }
 
-    // ==========================================
-    // 3. DRIVE OPERATION HELPERS (The Workers)
-    // ==========================================
-
     async function createFile(data) {
         const token = gapi.client.getToken().access_token;
-        const metadata = { name: 'budget_frost_data.json', parents: ['appDataFolder'] };
-        const body = JSON.stringify(data);
-
-        const form = new FormData();
-        form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-        form.append('file',     new Blob([body],                      { type: 'application/json' }));
-
-        const res = await fetch(
-            'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
-            { method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: form }
-        );
+        const form  = new FormData();
+        form.append('metadata', new Blob([JSON.stringify({ name: 'budget_frost_data.json', parents: ['appDataFolder'] })], { type: 'application/json' }));
+        form.append('file',     new Blob([JSON.stringify(data)], { type: 'application/json' }));
+        const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
+            { method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: form });
         if (!res.ok) throw await res.json();
         return res.json();
     }
 
     async function updateFile(fileId, data) {
         const token = gapi.client.getToken().access_token;
-        const body  = JSON.stringify(data);
-
-        const res = await fetch(
-            `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,
-            {
-                method: 'PATCH',
-                headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
-                body
-            }
-        );
+        const res = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,
+            { method: 'PATCH', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
         if (!res.ok) throw await res.json();
         return res.json();
     }
 
     async function downloadFile(fileId) {
-        const response = await gapi.client.drive.files.get({
-            fileId: fileId,
-            alt: 'media'
-        });
-        
+        const response = await gapi.client.drive.files.get({ fileId, alt: 'media' });
         const cloudData = response.result;
         if (cloudData && cloudData.categories) {
-            categories = cloudData.categories;
-            history = cloudData.history;
+            categories  = cloudData.categories;
+            history     = cloudData.history;
             storedMonth = cloudData.month;
-            // Save to local storage so the UI updates correctly
-            localStorage.setItem('myCats', JSON.stringify(categories));
-            localStorage.setItem('history', JSON.stringify(history));
-            localStorage.setItem('currentMonth', storedMonth);
+            localStorage.setItem('myCats',        JSON.stringify(categories));
+            localStorage.setItem('history',       JSON.stringify(history));
+            localStorage.setItem('currentMonth',  storedMonth);
         }
     }
 
-    // --- APP LOGIC ---
+    // ── APP LOGIC ──
     function checkMonthReset() {
         const now = new Date().toISOString().slice(0, 7);
-        if (storedMonth && storedMonth !== now) {
+        if (!storedMonth) { storedMonth = now; localStorage.setItem('currentMonth', now); }
+        else if (storedMonth !== now) {
             categories.forEach(c => c.balance = c.limit);
             storedMonth = now;
             localStorage.setItem('currentMonth', now);
-        } else if (!storedMonth) {
-            storedMonth = now;
-            localStorage.setItem('currentMonth', now);
+            localStorage.setItem('myCats', JSON.stringify(categories));
         }
     }
 
     function updateUI() {
-        localStorage.setItem('myCats', JSON.stringify(categories));
+        localStorage.setItem('myCats',  JSON.stringify(categories));
         localStorage.setItem('history', JSON.stringify(history));
-        
-        const container = document.getElementById('cards-container');
-        const sel = document.getElementById('catSelect');
-        const edit = document.getElementById('editList');
-        container.innerHTML = sel.innerHTML = edit.innerHTML = '';
+
+        const cardsEl = document.getElementById('cards-container');
+        const selEl   = document.getElementById('catSelect');
+        const editEl  = document.getElementById('editList');
+        const histEl  = document.getElementById('historyList');
+        cardsEl.innerHTML = selEl.innerHTML = editEl.innerHTML = '';
 
         categories.forEach(cat => {
-            const p = palettes[cat.pIndex % palettes.length];
+            const p   = palettes[cat.pIndex % palettes.length];
             const pct = Math.max(0, Math.min(100, (cat.balance / cat.limit) * 100));
-            container.innerHTML += `
-                <div class="budget-card" style="background:linear-gradient(135deg, ${p.grad[0]}, ${p.grad[1]})">
+            cardsEl.innerHTML += `
+                <div class="budget-card" style="background:linear-gradient(135deg,${p.grad[0]},${p.grad[1]})">
                     <div class="card-top"><span class="card-label">${cat.name}</span></div>
-                    <div class="amount">₹${cat.balance.toLocaleString()}</div>
+                    <div class="amount">₹${Math.max(0,cat.balance).toLocaleString('en-IN')}</div>
                     <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
                 </div>`;
-            sel.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
-            edit.innerHTML += `
+            selEl.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+            editEl.innerHTML += `
                 <div class="cat-edit-row">
-                    <input type="text" value="${cat.name}" disabled style="flex:1.5; opacity:0.6; border:none; background:transparent;">
+                    <input type="text" value="${cat.name}" disabled style="flex:1.5;opacity:0.6;border:none;background:transparent;">
                     <input type="number" id="limit_${cat.id}" value="${cat.limit}" style="flex:1;">
+                    <button class="del-cat-btn" onclick="deleteCategory('${cat.id}')"><i class="fa-solid fa-xmark"></i></button>
                 </div>`;
         });
 
-        const histList = document.getElementById('historyList');
-        histList.innerHTML = '<span class="sect-label">Recent Activity</span>';
-        history.slice().reverse().forEach(item => {
-            const cat = categories.find(c => c.id === item.catId) || categories[0];
-            const p = palettes[cat.pIndex % palettes.length];
-            histList.innerHTML += `
+        histEl.innerHTML = '<span class="sect-label">Recent Activity</span>';
+        if (!history.length) {
+            histEl.innerHTML += '<div class="empty-state">No transactions yet.</div>';
+            return;
+        }
+
+        history.map((item, i) => ({ item, realIndex: i })).reverse().forEach(({ item, realIndex }) => {
+            const cat     = categories.find(c => c.id === item.catId);
+            const p       = cat ? palettes[cat.pIndex % palettes.length] : palettes[0];
+            const catName = cat ? cat.name : 'Deleted';
+
+            const wrapper = document.createElement('div');
+            wrapper.className     = 'history-item-wrapper';
+            wrapper.dataset.index = realIndex;
+            wrapper.innerHTML = `
+                <div class="delete-bg"><i class="fa-solid fa-trash-can"></i></div>
                 <div class="history-item">
-                    <div class="icon-circle" style="background:${p.base}22; color:${p.base}"><i class="fa-solid ${p.icon}"></i></div>
+                    <div class="icon-circle" style="background:${p.base}22;color:${p.base}"><i class="fa-solid ${p.icon}"></i></div>
                     <div class="item-info">
                         <div class="item-name">${item.desc}</div>
-                        <div class="item-meta"><span>${cat.name}</span><span>${item.date}</span></div>
+                        <div class="item-meta"><span>${catName}</span><span>${item.date || ''}</span></div>
                     </div>
-                    <div class="item-amt">₹${item.val}</div>
+                    <div class="item-amt">-₹${item.val}</div>
+                    <button class="delete-btn" title="Delete" onclick="requestDelete(${realIndex})">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
                 </div>`;
+
+            // Swipe to delete
+            let startX = null;
+            const hi = wrapper.querySelector('.history-item');
+            const bg = wrapper.querySelector('.delete-bg');
+            wrapper.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
+            wrapper.addEventListener('touchmove',  e => {
+                if (startX === null) return;
+                const dx = e.touches[0].clientX - startX;
+                if (dx < 0) { const s = Math.max(-68, dx); hi.style.transform = `translateX(${s}px)`; bg.style.opacity = Math.min(1, Math.abs(s) / 50); }
+            }, { passive: true });
+            wrapper.addEventListener('touchend', e => {
+                if (startX === null) return;
+                const dx = e.changedTouches[0].clientX - startX;
+                hi.style.transform = ''; bg.style.opacity = 0;
+                if (dx < -46) requestDelete(realIndex);
+                startX = null;
+            }, { passive: true });
+
+            histEl.appendChild(wrapper);
         });
     }
 
+    // ── DELETE TRANSACTION ──
+    function requestDelete(idx) {
+        const item = history[idx]; if (!item) return;
+        pendingDeleteIndex = idx;
+        const cat = categories.find(c => c.id === item.catId);
+        document.getElementById('modalPreview').textContent =
+            `"${item.desc}"  ·  ₹${item.val}  ·  ${cat ? cat.name : 'Deleted'}`;
+        document.getElementById('deleteModal').classList.add('active');
+    }
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').classList.remove('active');
+        pendingDeleteIndex = null;
+    }
+    function confirmDelete() {
+        if (pendingDeleteIndex === null) return;
+        const item = history[pendingDeleteIndex];
+        const ci = categories.findIndex(c => c.id === item.catId);
+        if (ci > -1) categories[ci].balance += item.val;
+        const wrapper = document.querySelector(`.history-item-wrapper[data-index="${pendingDeleteIndex}"]`);
+        closeDeleteModal();
+        if (wrapper) {
+            wrapper.classList.add('removing');
+            wrapper.addEventListener('animationend', () => {
+                history.splice(pendingDeleteIndex, 1);
+                pendingDeleteIndex = null;
+                updateUI();
+            }, { once: true });
+        } else {
+            history.splice(pendingDeleteIndex, 1);
+            pendingDeleteIndex = null;
+            updateUI();
+        }
+    }
+    document.getElementById('deleteModal').addEventListener('click', function(e) {
+        if (e.target === this) closeDeleteModal();
+    });
+
+    // ── OTHER ACTIONS ──
     function addEntry() {
-        const desc = document.getElementById('desc').value || 'Expense';
-        const val = parseFloat(document.getElementById('amt').value);
+        const desc  = document.getElementById('desc').value || 'Expense';
+        const val   = parseFloat(document.getElementById('amt').value);
         const catId = document.getElementById('catSelect').value;
         if (!val || val <= 0) return;
-
         const idx = categories.findIndex(c => c.id === catId);
         if (idx > -1) categories[idx].balance -= val;
-
         const now = new Date();
-        const dateStr = `${now.toLocaleDateString([], {month:'short', day:'numeric'})}, ${now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
-        
-        history.push({ desc, val, catId, date: dateStr });
+        history.push({ desc, val, catId, date: `${now.toLocaleDateString([],{month:'short',day:'numeric'})}, ${now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}` });
         if (history.length > 50) history.shift();
-
         document.getElementById('desc').value = '';
-        document.getElementById('amt').value = '';
+        document.getElementById('amt').value  = '';
         updateUI();
     }
 
     function addNewCategory() {
-        const name = document.getElementById('newCatName').value;
+        const name  = document.getElementById('newCatName').value;
         const limit = parseFloat(document.getElementById('newCatLimit').value);
         if (!name || !limit) return;
         categories.push({ id: 'cat_'+Date.now(), name, limit, balance: limit, pIndex: categories.length });
-        document.getElementById('newCatName').value = '';
+        document.getElementById('newCatName').value  = '';
         document.getElementById('newCatLimit').value = '';
         updateUI();
     }
@@ -415,19 +544,30 @@ function handleAuthClick() {
     function saveLimits() {
         categories.forEach(cat => {
             const inp = document.getElementById('limit_'+cat.id);
-            if(inp) {
-                const newLim = parseFloat(inp.value);
-                cat.balance += (newLim - cat.limit);
-                cat.limit = newLim;
-            }
+            if (inp) { const v = parseFloat(inp.value); if (!isNaN(v) && v > 0) { cat.balance += (v - cat.limit); cat.limit = v; } }
         });
         updateUI();
         alert("Limits updated!");
     }
 
+    function deleteCategory(id) {
+        if (confirm("Delete this category? Its transactions will remain in history.")) {
+            categories = categories.filter(c => c.id !== id);
+            updateUI();
+        }
+    }
+
+    function manualReset() {
+        if (confirm("Force reset? This restores all balances to their limits and clears all transaction history.")) {
+            categories.forEach(c => c.balance = c.limit);
+            history = [];
+            updateUI();
+        }
+    }
+
     function toggleSettings() {
-        const area = document.getElementById('settings-area');
-        area.style.display = area.style.display === 'block' ? 'none' : 'block';
+        const a = document.getElementById('settings-area');
+        a.style.display = a.style.display === 'block' ? 'none' : 'block';
     }
 
     function toggleDark() {
@@ -436,7 +576,7 @@ function handleAuthClick() {
     }
 
     window.onload = () => {
-        if(localStorage.getItem('darkMode') === 'true') document.body.classList.add('dark');
+        if (localStorage.getItem('darkMode') === 'true') document.body.classList.add('dark');
         checkMonthReset();
         updateUI();
         gapiLoaded();
