@@ -202,9 +202,66 @@
         .empty-state { font-size: 0.78rem; color: var(--sub); opacity: 0.7; text-align: center; padding: 16px 0; }
         #sync-btn.disconnecting { color: var(--danger); border-color: var(--danger); border-style: dashed; }
         .divider { height: 1px; background: var(--stroke); margin: 14px 0; }
+
+        /* Transaction edit modal */
+        .txn-modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(20,10,0,0.55); backdrop-filter: blur(8px);
+            z-index: 1001; align-items: flex-end; justify-content: center;
+        }
+        .txn-modal-overlay.active { display: flex; }
+        .txn-modal-box {
+            background: var(--cream); border: 1px solid var(--card-border);
+            border-radius: 24px 24px 0 0; padding: 24px 24px 36px;
+            width: 100%; max-width: 480px;
+            box-shadow: 0 -10px 60px rgba(0,0,0,0.25);
+            animation: slideUp 0.28s cubic-bezier(0.16,1,0.3,1);
+        }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .txn-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+        .txn-modal-title { font-size: 1rem; font-weight: 800; color: var(--text); }
+        .txn-close-btn { background: var(--surface); border: 1px solid var(--stroke); color: var(--sub); width: 32px; height: 32px; border-radius: 10px; cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; }
+        .txn-field-label { font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--sub); margin-bottom: 5px; display: block; }
+        .txn-field { margin-bottom: 12px; }
+        .txn-modal-actions { display: flex; gap: 10px; margin-top: 6px; }
+        .txn-save-btn { flex: 1; padding: 13px; border-radius: 14px; border: none; background: var(--accent); color: #fff; font-weight: 800; font-size: 0.92rem; cursor: pointer; font-family: inherit; transition: transform 0.1s; }
+        .txn-save-btn:active { transform: scale(0.97); }
+        .txn-delete-btn { padding: 13px 18px; border-radius: 14px; border: none; background: rgba(192,57,43,0.1); color: var(--danger); font-weight: 800; font-size: 0.92rem; cursor: pointer; font-family: inherit; border: 1px solid rgba(192,57,43,0.2); transition: background 0.2s; }
+        .txn-delete-btn:hover { background: rgba(192,57,43,0.2); }
+        .history-item { cursor: pointer; }
     </style>
 </head>
 <body>
+
+<!-- Transaction Edit Modal -->
+<div class="txn-modal-overlay" id="txnModal">
+    <div class="txn-modal-box">
+        <div class="txn-modal-header">
+            <span class="txn-modal-title"><i class="fa-solid fa-pen-to-square"></i> Edit Transaction</span>
+            <button class="txn-close-btn" onclick="closeTxnModal()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="txn-field">
+            <span class="txn-field-label">Description</span>
+            <input type="text" id="txn-desc" placeholder="What did you buy?">
+        </div>
+        <div class="txn-field">
+            <span class="txn-field-label">Amount (₹)</span>
+            <input type="number" id="txn-amt" placeholder="Amount" inputmode="decimal">
+        </div>
+        <div class="txn-field">
+            <span class="txn-field-label">Category</span>
+            <select id="txn-cat"></select>
+        </div>
+        <div class="txn-field">
+            <span class="txn-field-label">Date & Time</span>
+            <input type="text" id="txn-date" placeholder="e.g. Apr 5, 2:30 PM">
+        </div>
+        <div class="txn-modal-actions">
+            <button class="txn-delete-btn" onclick="txnDeleteFromEdit()"><i class="fa-solid fa-trash-can"></i></button>
+            <button class="txn-save-btn" onclick="saveTxnEdit()">Save Changes</button>
+        </div>
+    </div>
+</div>
 
 <!-- Delete Confirmation Modal -->
 <div class="modal-overlay" id="deleteModal">
@@ -428,18 +485,24 @@
     }
 
     // Sync button:
-    //   - If not connected → open Google login
+    //   - If not connected / error → open Google login
     //   - If connected → fetch latest from cloud
     function handleAuthClick() {
         if (!gapiInited || !gsiInited) {
             alert("Still loading Google libraries, please try again.");
             return;
         }
-        if (getToken()) {
+        const btn = document.getElementById('sync-btn');
+        const isError = btn.classList.contains('error');
+        if (getToken() && !isError) {
             // Already connected — re-fetch from cloud
             autoUpload('download');
             return;
         }
+        // Clear error state before retrying
+        storedToken = null; tokenExpiry = 0;
+        localStorage.removeItem('driveToken');
+        localStorage.removeItem('driveTokenExpiry');
         const tc = google.accounts.oauth2.initTokenClient({
             client_id: CLIENT_ID, scope: SCOPES,
             callback: async (resp) => {
@@ -624,12 +687,12 @@
             wrapper.innerHTML = `
                 <div class="delete-bg"><i class="fa-solid fa-trash-can"></i></div>
                 <div class="history-item">
-                    <div class="icon-circle" style="background:${p.base}22;color:${p.base}"><i class="fa-solid ${p.icon}"></i></div>
-                    <div class="item-info">
+                    <div class="icon-circle" style="background:${p.base}22;color:${p.base}" onclick="openTxnModal(${realIndex})"><i class="fa-solid ${p.icon}"></i></div>
+                    <div class="item-info" onclick="openTxnModal(${realIndex})">
                         <div class="item-name">${item.desc}</div>
                         <div class="item-meta"><span>${catName}</span><span>${item.date || ''}</span></div>
                     </div>
-                    <div class="item-amt">-₹${item.val}</div>
+                    <div class="item-amt" onclick="openTxnModal(${realIndex})">-₹${item.val}</div>
                     <button class="delete-btn" title="Delete" onclick="requestDelete(${realIndex})">
                         <i class="fa-solid fa-trash-can"></i>
                     </button>
@@ -656,6 +719,69 @@
             histEl.appendChild(wrapper);
         });
     }
+
+    // ── TRANSACTION EDIT MODAL ──
+    let editingTxnIndex = null;
+
+    function openTxnModal(idx) {
+        const item = history[idx];
+        if (!item) return;
+        editingTxnIndex = idx;
+
+        // Populate category dropdown
+        const catSel = document.getElementById('txn-cat');
+        catSel.innerHTML = '';
+        categories.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id; opt.textContent = c.name;
+            if (c.id === item.catId) opt.selected = true;
+            catSel.appendChild(opt);
+        });
+
+        document.getElementById('txn-desc').value = item.desc || '';
+        document.getElementById('txn-amt').value  = item.val  || '';
+        document.getElementById('txn-date').value = item.date || '';
+        document.getElementById('txnModal').classList.add('active');
+    }
+
+    function closeTxnModal() {
+        document.getElementById('txnModal').classList.remove('active');
+        editingTxnIndex = null;
+    }
+
+    function saveTxnEdit() {
+        if (editingTxnIndex === null) return;
+        const oldItem = history[editingTxnIndex];
+        const newDesc = document.getElementById('txn-desc').value.trim() || oldItem.desc;
+        const newAmt  = parseFloat(document.getElementById('txn-amt').value);
+        const newCat  = document.getElementById('txn-cat').value;
+        const newDate = document.getElementById('txn-date').value.trim() || oldItem.date;
+        if (isNaN(newAmt) || newAmt <= 0) { alert('Please enter a valid amount.'); return; }
+
+        // Reverse old amount from old category
+        const oldCatIdx = categories.findIndex(c => c.id === oldItem.catId);
+        if (oldCatIdx > -1) categories[oldCatIdx].balance += oldItem.val;
+
+        // Apply new amount to new category
+        const newCatIdx = categories.findIndex(c => c.id === newCat);
+        if (newCatIdx > -1) categories[newCatIdx].balance -= newAmt;
+
+        history[editingTxnIndex] = { desc: newDesc, val: newAmt, catId: newCat, date: newDate };
+        closeTxnModal();
+        updateUI();
+        scheduleAutoSync();
+    }
+
+    function txnDeleteFromEdit() {
+        if (editingTxnIndex === null) return;
+        const idx = editingTxnIndex;
+        closeTxnModal();
+        requestDelete(idx);
+    }
+
+    document.getElementById('txnModal').addEventListener('click', function(e) {
+        if (e.target === this) closeTxnModal();
+    });
 
     // ── DELETE TRANSACTION ──
     function requestDelete(idx) {
