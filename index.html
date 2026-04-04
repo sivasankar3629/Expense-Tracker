@@ -3,46 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Budget Tracker</title>
+    <title>Budget Frost</title>
     
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     
     <style>
         :root {
-            --primary: #475569;
-            --needs: #059669;
-            --wants: #d97706;
-            --bg: #f8fafc;
-            --card: #ffffff;
-            --text: #1e293b;
+            /* Full Glass Palette */
+            --glass-bg: rgba(255, 255, 255, 0.45);
+            --glass-border: rgba(255, 255, 255, 0.3);
+            --glass-blur: blur(20px);
+            
+            --primary: #4f46e5; /* Indigo */
+            --needs: #059669; /* Emerald */
+            --wants: #d97706; /* Amber */
+            --text-on-glass: #1e293b;
+            --sub-text: #475569;
         }
 
         body.dark-mode {
-            --bg: #0f172a;
-            --card: #1e293b;
-            --text: #f1f5f9;
+            --glass-bg: rgba(15, 23, 42, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-on-glass: #f1f5f9;
+            --sub-text: #94a3b8;
         }
 
         body { 
-            font-family: 'Inter', sans-serif; 
-            background: var(--bg); 
-            color: var(--text);
+            font-family: 'Poppins', sans-serif; 
             margin: 0;
             padding: 20px; 
             display: flex; 
             justify-content: center; 
+            min-height: 100vh;
+            color: var(--text-on-glass);
             transition: all 0.3s ease;
+            
+            /* Background Image (Abstract Gradient) */
+            background-color: #e2e8f0;
+            background-image: linear-gradient(135deg, #f0f9ff 10%, #dbeafe 40%, #ddd6fe 80%, #f1f5f9 100%);
+            background-attachment: fixed;
+        }
+        
+        body.dark-mode {
+            background-color: #0f172a;
+            background-image: linear-gradient(135deg, #020617 10%, #1e293b 50%, #111827 90%, #020617 100%);
         }
 
+        /* The main "Glass" container */
         .container { 
             width: 100%; 
             max-width: 420px; 
-            background: var(--card);
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
             padding: 24px;
-            border-radius: 24px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            border-radius: 28px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.15);
         }
 
         .header {
@@ -52,96 +71,111 @@
             margin-bottom: 24px;
         }
 
-        h2 { margin: 0; font-size: 1.3rem; font-weight: 700; color: var(--primary); }
+        h2 { margin: 0; font-size: 1.4rem; font-weight: 700; color: var(--primary); letter-spacing: -0.015em; }
 
         .dark-mode-toggle {
-            background: none; border: 1px solid #cbd5e1; width: auto; padding: 8px 12px;
-            color: var(--text); border-radius: 12px; cursor: pointer; font-size: 0.9rem;
+            background: none; border: 1px solid rgba(0,0,0,0.1); width: auto; padding: 8px 12px;
+            color: var(--text-on-glass); border-radius: 12px; cursor: pointer; font-size: 0.9rem;
         }
+        body.dark-mode .dark-mode-toggle { border-color: rgba(255,255,255,0.1); }
 
-        /* Budget Cards */
+        /* Translucent Budget Cards */
         .budget-card {
             padding: 20px;
-            border-radius: 20px;
+            border-radius: 22px;
             margin-bottom: 16px;
-            color: white;
+            color: #ffffff; /* Text inside cards is always white */
             position: relative;
             overflow: hidden;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            box-shadow: 0 6px 20px -5px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background-size: cover;
         }
 
-        .needs-box { background: linear-gradient(135deg, #10b981, #059669); }
-        .wants-box { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .needs-box { background: linear-gradient(135deg, #10b981ee, #059669); }
+        .wants-box { background: linear-gradient(135deg, #f59e0bee, #d97706); }
 
         .card-label { font-size: 0.85rem; font-weight: 600; opacity: 0.9; margin-bottom: 4px; }
-        .amount { font-size: 2rem; font-weight: 700; margin-bottom: 12px; }
+        .amount { font-size: 2.1rem; font-weight: 700; margin-bottom: 12px; letter-spacing: -0.015em; }
         
         .progress-container {
             background: rgba(255, 255, 255, 0.2);
-            height: 6px;
+            height: 7px;
             border-radius: 10px;
         }
         .progress-bar {
             height: 100%;
             background: white;
             border-radius: 10px;
-            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: width 0.7s cubic-bezier(0.34, 1.56, 0.64, 1); /* Bounce animation */
         }
 
-        /* Form Controls */
-        .input-group { background: var(--bg); padding: 18px; border-radius: 18px; margin-bottom: 20px; border: 1px solid #e2e8f0; }
-        body.dark-mode .input-group { border-color: #334155; }
+        /* Transaction Form (Glass Panel) */
+        .input-group { 
+            background: rgba(255,255,255,0.2);
+            border-radius: 20px; 
+            padding: 20px; 
+            margin-bottom: 24px; 
+            border: 1px solid var(--glass-border); 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+        }
+        body.dark-mode .input-group { background: rgba(0,0,0,0.1); }
         
-        label { display: block; font-size: 0.7rem; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; color: #64748b; letter-spacing: 0.05em; }
+        label { display: block; font-size: 0.75rem; font-weight: 700; margin-bottom: 10px; text-transform: uppercase; color: var(--sub-text); letter-spacing: 0.05em; }
         
         input, select { 
-            width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #e2e8f0;
-            border-radius: 10px; font-family: inherit; font-size: 1rem;
-            background: var(--card); color: var(--text); box-sizing: border-box;
+            width: 100%; padding: 13px; margin-bottom: 14px; border: 1px solid var(--glass-border);
+            border-radius: 12px; font-family: inherit; font-size: 1rem;
+            background: rgba(255,255,255,0.3); color: var(--text-on-glass); box-sizing: border-box;
+            transition: border-color 0.2s;
         }
-
-        body.dark-mode input, body.dark-mode select { border-color: #475569; }
+        body.dark-mode input, body.dark-mode select { background: rgba(0,0,0,0.1); }
+        input:focus, select:focus { border-color: var(--primary); outline: none; }
 
         button.main-btn {
-            background: var(--primary); color: white; border: none; padding: 14px;
-            border-radius: 12px; width: 100%; font-weight: 700; font-size: 0.95rem;
-            cursor: pointer; transition: transform 0.1s, background 0.2s;
+            background: var(--primary); color: white; border: none; padding: 15px;
+            border-radius: 14px; width: 100%; font-weight: 700; font-size: 1rem;
+            cursor: pointer; transition: transform 0.1s, box-shadow 0.2s, background 0.2s;
+            box-shadow: 0 4px 15px -1px rgba(79, 70, 229, 0.4);
         }
         button.main-btn:active { transform: scale(0.97); }
+        button.main-btn:hover { background: #4338ca; box-shadow: 0 6px 20px -1px rgba(79, 70, 229, 0.6); }
 
         /* History */
-        .history { margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 16px; }
+        .history { margin-top: 24px; border-top: 1px solid var(--glass-border); padding-top: 20px; }
         .history-item {
-            display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(0,0,0,0.05);
         }
-        body.dark-mode .history-item { border-bottom-color: #334155; }
+        body.dark-mode .history-item { border-bottom-color: rgba(255,255,255,0.05); }
         
         .icon-circle {
-            width: 32px; height: 32px; border-radius: 8px; display: flex;
-            align-items: center; justify-content: center; margin-right: 12px;
+            width: 36px; height: 36px; border-radius: 10px; display: flex;
+            align-items: center; justify-content: center; margin-right: 14px;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.02);
         }
         .item-info { flex: 1; }
-        .item-name { font-weight: 600; font-size: 0.85rem; }
-        .item-cat { font-size: 0.65rem; color: #64748b; font-weight: 600; }
-        .item-amt { font-weight: 700; color: #ef4444; font-size: 0.9rem; }
+        .item-name { font-weight: 600; font-size: 0.9rem; margin-bottom: 1px; }
+        .item-cat { font-size: 0.7rem; color: var(--sub-text); font-weight: 600; }
+        .item-amt { font-weight: 700; color: #ef4444; font-size: 0.95rem; }
 
         /* Footer Settings */
         .settings-btn {
-            background: none; border: none; color: #94a3b8; font-size: 0.75rem;
+            background: none; border: none; color: var(--sub-text); font-size: 0.75rem;
             margin-top: 24px; cursor: pointer; text-decoration: none; width: 100%; font-weight: 600;
         }
-        #settings-area { display: none; padding-top: 15px; border-top: 1px dashed #cbd5e1; margin-top: 10px; }
+        #settings-area { display: none; padding-top: 15px; border-top: 1px dashed var(--glass-border); margin-top: 10px; }
 
         .footer-btns { display: flex; gap: 10px; margin-top: 15px; }
-        .reset-btn { background: #64748b; font-size: 0.75rem; padding: 10px; flex: 1; }
+        .reset-btn { background: rgba(0,0,0,0.05); color: var(--text-on-glass); font-size: 0.75rem; padding: 10px; flex: 1; }
+        body.dark-mode .reset-btn { background: rgba(255,255,255,0.05); }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="header">
-        <h2><i class="fa-solid fa-chart-line"></i> Budget Tracker</h2>
-        <button class="dark-mode-toggle" onclick="toggleDark()"><i class="fa-solid fa-circle-half-stroke"></i></button>
+        <h2><i class="fa-solid fa-wallet" style="color: var(--primary); font-size: 1.2rem;"></i> Budget Frost</h2>
+        <button class="dark-mode-toggle" onclick="toggleDark()"><i class="fa-solid fa-cloud-moon"></i></button>
     </div>
 
     <div class="budget-card needs-box">
@@ -161,28 +195,28 @@
     </div>
 
     <div class="input-group">
-        <label>Add Expense</label>
-        <input type="text" id="desc" placeholder="Description (e.g. Lunch)">
+        <label>New Expense</label>
+        <input type="text" id="desc" placeholder="Lunch at the cafeteria">
         <input type="number" id="amt" placeholder="Amount (₹)" inputmode="decimal">
         <select id="cat">
-            <option value="needs">Daily Need</option>
-            <option value="wants">Want / Lifestyle</option>
+            <option value="needs">Daily Need (Grocery/Travel)</option>
+            <option value="wants">Want / Lifestyle (Coffee/Fun)</option>
         </select>
-        <button class="main-btn" onclick="addEntry()">Record Transaction</button>
+        <button class="main-btn" onclick="addEntry()"><i class="fa-solid fa-circle-plus"></i> &nbsp;Record Transaction</button>
     </div>
 
     <div class="history" id="historyList">
-        <label>History</label>
+        <label>Activity</label>
     </div>
 
-    <button class="settings-btn" onclick="toggleSettings()">MANAGE LIMITS & DATA</button>
+    <button class="settings-btn" onclick="toggleSettings()"><i class="fa-solid fa-gears"></i> &nbsp;DATA & LIMITS</button>
     
     <div id="settings-area">
-        <label>Modify Monthly Targets</label>
-        <input type="number" id="setNeeds" placeholder="Needs Target (Default: 6000)">
-        <input type="number" id="setWants" placeholder="Wants Target (Default: 7150)">
+        <label>Adjust Monthly Targets</label>
+        <input type="number" id="setNeeds" placeholder="Needs Target (e.g. 6000)">
+        <input type="number" id="setWants" placeholder="Wants Target (e.g. 7150)">
         <div class="footer-btns">
-            <button class="main-btn" style="background: #1e293b" onclick="setNewLimits()">Update</button>
+            <button class="main-btn" style="background: #1e293b; box-shadow: none;" onclick="setNewLimits()">Apply</button>
             <button class="main-btn reset-btn" onclick="clearAll()">Reset Month</button>
         </div>
     </div>
@@ -207,13 +241,13 @@
         localStorage.setItem('history', JSON.stringify(history));
         
         const list = document.getElementById('historyList');
-        list.innerHTML = '<label>History</label>';
+        list.innerHTML = '<label>Activity</label>';
         history.slice().reverse().forEach(item => {
-            const icon = item.cat === 'needs' ? 'fa-bag-shopping' : 'fa-mug-hot';
-            const color = item.cat === 'needs' ? '#059669' : '#d97706';
+            const icon = item.cat === 'needs' ? 'fa-cart-shopping' : 'fa-star';
+            const color = item.cat === 'needs' ? '#10b981' : '#f59e0b';
             list.innerHTML += `
                 <div class="history-item">
-                    <div class="icon-circle" style="background: ${color}15; color: ${color}">
+                    <div class="icon-circle" style="background: ${color}10; color: ${color}">
                         <i class="fa-solid ${icon}"></i>
                     </div>
                     <div class="item-info">
