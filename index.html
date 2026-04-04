@@ -458,77 +458,71 @@
         autoSyncTimer = setTimeout(() => autoUpload('upload'), delay);
     }
 
-    // mode: 'upload'   → just push local data to Drive (after a change)
-    //       'download' → pull Drive data to local (on refresh/silent re-auth)
-    //       'connect'  → first manual connect: download if file exists, else upload
+    // mode: 'upload'   → push local data to Drive (after any change)
+    //       'download' → pull Drive data to local (on refresh / manual sync)
+    //       'connect'  → first login: download if file exists, else upload local
     async function autoUpload(mode) {
         if (isSyncing) return;
         if (!navigator.onLine) { setSyncStatus('error'); return; }
+        const token = getToken();
+        if (!token) { setSyncStatus('disconnected'); return; }
         isSyncing = true;
         setSyncStatus('syncing');
         try {
             if (mode === 'upload') {
-                // Simple push — file must already exist
-                if (driveFileId) {
-                    await updateFile(driveFileId, { categories, history, month: storedMonth });
-                }
+                if (driveFileId) await driveUpdate(driveFileId, { categories, history, month: storedMonth });
 
             } else if (mode === 'download') {
-                // Pull cloud → local. driveFileId may already be cached.
-                if (!driveFileId) {
-                    const res = await gapi.client.drive.files.list({
-                        spaces: 'appDataFolder', fields: 'files(id)', pageSize: 1
-                    });
-                    const files = res.result.files;
-                    if (files && files.length > 0) {
-                        driveFileId = files[0].id;
-                        localStorage.setItem('driveFileId', driveFileId);
-                    }
-                }
+                if (!driveFileId) driveFileId = await findDriveFile();
                 if (driveFileId) {
-                    await downloadFile(driveFileId);
+                    await driveDownload(driveFileId);
                     updateUI();
                 }
 
             } else if (mode === 'connect') {
-                // First manual connect: look for existing file, download or create
-                const res = await gapi.client.drive.files.list({
-                    spaces: 'appDataFolder', fields: 'files(id)', pageSize: 1
-                });
-                const files = res.result.files;
-                if (files && files.length > 0) {
-                    driveFileId = files[0].id;
-                    localStorage.setItem('driveFileId', driveFileId);
-                    await downloadFile(driveFileId);
+                driveFileId = await findDriveFile();
+                if (driveFileId) {
+                    await driveDownload(driveFileId);
                     updateUI();
                 } else {
-                    const created = await createFile({ categories, history, month: storedMonth });
+                    const created = await driveCreate({ categories, history, month: storedMonth });
                     driveFileId = created.id;
                     localStorage.setItem('driveFileId', driveFileId);
                 }
             }
 
-            // Fetch and cache email for display + future silent auth hint
+            // Cache email for display and future silent-auth hint
             try {
-                const info = await fetch('https://www.googleapis.com/oauth2/v3/userinfo',
-                    { headers: { Authorization: 'Bearer ' + getToken() } });
-                const profile = await info.json();
-                if (profile.email) {
-                    lastSignedInEmail = profile.email;
-                    localStorage.setItem('lastSignedInEmail', profile.email);
-                }
-                setSyncStatus('connected', profile.email || '');
+                const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo',
+                    { headers: { Authorization: 'Bearer ' + token } });
+                const p = await r.json();
+                if (p.email) { lastSignedInEmail = p.email; localStorage.setItem('lastSignedInEmail', p.email); }
+                setSyncStatus('connected', p.email || '');
             } catch(e) { setSyncStatus('connected'); }
 
         } catch (err) {
-            console.error("Auto-sync error:", err);
+            console.error("Sync error:", err);
             setSyncStatus('error');
         } finally {
             isSyncing = false;
         }
     }
 
-    async function createFile(data) {
+    // All Drive API calls use plain fetch with Bearer token — no gapi.client dependency
+    async function findDriveFile() {
+        const token = getToken();
+        const res = await fetch(
+            'https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id)&pageSize=1',
+            { headers: { Authorization: 'Bearer ' + token } }
+        );
+        if (!res.ok) throw await res.json();
+        const data = await res.json();
+        const id = data.files && data.files.length > 0 ? data.files[0].id : null;
+        if (id) localStorage.setItem('driveFileId', id);
+        return id;
+    }
+
+    async function driveCreate(data) {
         const token = getToken();
         const form  = new FormData();
         form.append('metadata', new Blob([JSON.stringify({ name: 'budget_frost_data.json', parents: ['appDataFolder'] })], { type: 'application/json' }));
@@ -539,7 +533,7 @@
         return res.json();
     }
 
-    async function updateFile(fileId, data) {
+    async function driveUpdate(fileId, data) {
         const token = getToken();
         const res = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,
             { method: 'PATCH', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
@@ -547,9 +541,12 @@
         return res.json();
     }
 
-    async function downloadFile(fileId) {
-        const response = await gapi.client.drive.files.get({ fileId, alt: 'media' });
-        const cloudData = response.result;
+    async function driveDownload(fileId) {
+        const token = getToken();
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+            { headers: { Authorization: 'Bearer ' + token } });
+        if (!res.ok) throw await res.json();
+        const cloudData = await res.json();
         if (cloudData && cloudData.categories) {
             categories  = cloudData.categories;
             history     = cloudData.history || [];
