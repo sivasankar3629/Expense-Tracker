@@ -254,7 +254,10 @@
         </div>
         <div class="txn-field">
             <span class="txn-field-label">Date & Time</span>
-            <input type="text" id="txn-date" placeholder="e.g. Apr 5, 2:30 PM">
+            <div style="display:flex;gap:8px;">
+                <input type="date" id="txn-date" style="flex:1;margin-bottom:0;">
+                <input type="time" id="txn-time" style="flex:1;margin-bottom:0;">
+            </div>
         </div>
         <div class="txn-modal-actions">
             <button class="txn-delete-btn" onclick="txnDeleteFromEdit()"><i class="fa-solid fa-trash-can"></i></button>
@@ -720,6 +723,54 @@
         });
     }
 
+    // ── DATE HELPERS ──
+    // All dates stored internally as ISO "YYYY-MM-DDTHH:MM" for input compatibility
+    // Displayed as "Apr 5, 2:30 PM" in the history list
+
+    function nowISO() {
+        const d = new Date();
+        const pad = n => String(n).padStart(2,'0');
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    // Parse either ISO format or old "Apr 5, 2:30 PM" format → Date object
+    function parseDate(str) {
+        if (!str) return new Date();
+        // ISO format: "2026-04-05T14:30"
+        if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(str)) return new Date(str);
+        // Old display format: "Apr 5, 2:30 PM"
+        return new Date(str + ' ' + new Date().getFullYear());
+    }
+
+    // Convert any stored date string → "YYYY-MM-DD" for <input type="date">
+    function toDateInput(str) {
+        const d = parseDate(str);
+        if (isNaN(d)) return '';
+        const pad = n => String(n).padStart(2,'0');
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    }
+
+    // Convert any stored date string → "HH:MM" for <input type="time">
+    function toTimeInput(str) {
+        const d = parseDate(str);
+        if (isNaN(d)) return '';
+        const pad = n => String(n).padStart(2,'0');
+        return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    // Combine date + time inputs → display string "Apr 5, 2:30 PM"
+    function toDisplayDate(dateVal, timeVal) {
+        const iso = dateVal + 'T' + (timeVal || '00:00');
+        const d = new Date(iso);
+        if (isNaN(d)) return dateVal;
+        return `${d.toLocaleDateString([],{month:'short',day:'numeric'})}, ${d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
+    }
+
+    // Combine date + time inputs → ISO string for storage
+    function toISO(dateVal, timeVal) {
+        return dateVal + 'T' + (timeVal || '00:00');
+    }
+
     // ── TRANSACTION EDIT MODAL ──
     let editingTxnIndex = null;
 
@@ -740,7 +791,8 @@
 
         document.getElementById('txn-desc').value = item.desc || '';
         document.getElementById('txn-amt').value  = item.val  || '';
-        document.getElementById('txn-date').value = item.date || '';
+        document.getElementById('txn-date').value = toDateInput(item.date);
+        document.getElementById('txn-time').value = toTimeInput(item.date);
         document.getElementById('txnModal').classList.add('active');
     }
 
@@ -752,10 +804,12 @@
     function saveTxnEdit() {
         if (editingTxnIndex === null) return;
         const oldItem = history[editingTxnIndex];
-        const newDesc = document.getElementById('txn-desc').value.trim() || oldItem.desc;
-        const newAmt  = parseFloat(document.getElementById('txn-amt').value);
-        const newCat  = document.getElementById('txn-cat').value;
-        const newDate = document.getElementById('txn-date').value.trim() || oldItem.date;
+        const newDesc    = document.getElementById('txn-desc').value.trim() || oldItem.desc;
+        const newAmt     = parseFloat(document.getElementById('txn-amt').value);
+        const newCat     = document.getElementById('txn-cat').value;
+        const dateVal    = document.getElementById('txn-date').value;
+        const timeVal    = document.getElementById('txn-time').value;
+        const newDate    = dateVal ? toDisplayDate(dateVal, timeVal) : oldItem.date;
         if (isNaN(newAmt) || newAmt <= 0) { alert('Please enter a valid amount.'); return; }
 
         // Reverse old amount from old category
