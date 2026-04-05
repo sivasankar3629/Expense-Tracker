@@ -229,6 +229,74 @@
         .txn-delete-btn { padding: 13px 18px; border-radius: 14px; border: none; background: rgba(192,57,43,0.1); color: var(--danger); font-weight: 800; font-size: 0.92rem; cursor: pointer; font-family: inherit; border: 1px solid rgba(192,57,43,0.2); transition: background 0.2s; }
         .txn-delete-btn:hover { background: rgba(192,57,43,0.2); }
         .history-item { cursor: pointer; }
+
+        /* ── ALL TRANSACTIONS PAGE ── */
+        #all-txn-page {
+            display: none; position: fixed; inset: 0;
+            background: var(--warm-bg); z-index: 500;
+            overflow-y: auto;
+            animation: pageFadeIn 0.22s ease;
+        }
+        #all-txn-page.active { display: block; }
+        @keyframes pageFadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+        .atp-header {
+            position: sticky; top: 0; z-index: 10;
+            background: var(--card-bg);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--card-border);
+            padding: 18px 20px 14px;
+            display: flex; align-items: center; gap: 14px;
+        }
+        .atp-back-btn {
+            background: var(--surface); border: 1px solid var(--stroke);
+            color: var(--text); width: 36px; height: 36px; border-radius: 11px;
+            cursor: pointer; font-size: 0.9rem; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            transition: border-color 0.2s;
+        }
+        .atp-back-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .atp-title { font-size: 1.05rem; font-weight: 800; flex: 1; }
+        .atp-total { font-size: 0.78rem; font-weight: 700; color: var(--sub); }
+
+        .atp-body { max-width: 480px; margin: 0 auto; padding: 20px 16px 60px; }
+
+        .atp-month-heading {
+            font-size: 0.65rem; font-weight: 800; text-transform: uppercase;
+            letter-spacing: 0.12em; color: var(--sub);
+            padding: 18px 0 8px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid var(--stroke); margin-bottom: 4px;
+        }
+        .atp-month-total { font-size: 0.72rem; font-weight: 800; color: var(--accent); }
+
+        .atp-row {
+            display: flex; align-items: center;
+            padding: 11px 6px; border-bottom: 1px solid var(--stroke);
+            cursor: pointer; border-radius: 10px;
+            transition: background 0.15s;
+            gap: 10px;
+        }
+        .atp-row:hover { background: rgba(192,57,43,0.04); }
+
+        .atp-date-col {
+            width: 38px; flex-shrink: 0; text-align: center;
+        }
+        .atp-day { font-size: 1rem; font-weight: 800; line-height: 1; color: var(--text); }
+        .atp-weekday { font-size: 0.58rem; font-weight: 700; color: var(--sub); text-transform: uppercase; margin-top: 1px; }
+
+        .atp-mid-col { flex: 1; min-width: 0; }
+        .atp-txn-name { font-weight: 700; font-size: 0.87rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .atp-cat-tag {
+            display: inline-block; font-size: 0.6rem; font-weight: 800;
+            text-transform: uppercase; letter-spacing: 0.06em;
+            padding: 2px 7px; border-radius: 20px; margin-top: 3px;
+        }
+        .atp-time { font-size: 0.62rem; color: var(--sub); font-weight: 600; margin-top: 2px; }
+
+        .atp-amt-col { font-weight: 800; font-size: 0.92rem; color: var(--danger); flex-shrink: 0; text-align: right; }
+
+        .atp-empty { text-align: center; padding: 60px 20px; color: var(--sub); font-size: 0.85rem; opacity: 0.7; }
     </style>
 </head>
 <body>
@@ -304,6 +372,9 @@
     </div>
 
     <div class="history" id="historyList"></div>
+    <button class="settings-toggle" onclick="openAllTxn()" style="margin-top:6px;">
+        <i class="fa-solid fa-list"></i> View All Transactions
+    </button>
 
     <button class="settings-toggle" onclick="toggleSettings()"><i class="fa-solid fa-sliders"></i> Manage Categories</button>
     <div id="settings-area">
@@ -941,6 +1012,82 @@
         localStorage.setItem('darkMode', document.body.classList.contains('dark'));
     }
 
+    // ── ALL TRANSACTIONS PAGE ──
+    function openAllTxn() {
+        const page  = document.getElementById('all-txn-page');
+        const body  = document.getElementById('atp-body');
+        const total = document.getElementById('atp-total-label');
+        page.classList.add('active');
+        body.innerHTML = '';
+
+        if (!history.length) {
+            body.innerHTML = '<div class="atp-empty"><i class="fa-solid fa-receipt" style="font-size:2rem;display:block;margin-bottom:12px;opacity:0.4;"></i>No transactions yet.</div>';
+            total.textContent = '';
+            return;
+        }
+
+        // Parse and sort chronologically (oldest first within each month, newest month first)
+        const parsed = history.map((item, realIndex) => {
+            const d = parseDate(item.date);
+            return { item, realIndex, d: isNaN(d) ? new Date(0) : d };
+        }).sort((a, b) => b.d - a.d); // newest first overall
+
+        // Group by "Month Year"
+        const groups = {};
+        const groupOrder = [];
+        parsed.forEach(entry => {
+            const key = entry.d.toLocaleDateString([], { month: 'long', year: 'numeric' });
+            if (!groups[key]) { groups[key] = []; groupOrder.push(key); }
+            groups[key].push(entry);
+        });
+
+        // Grand total
+        const grandTotal = history.reduce((s, i) => s + (i.val || 0), 0);
+        total.textContent = '₹' + grandTotal.toLocaleString('en-IN');
+
+        const weekdays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+        groupOrder.forEach(monthKey => {
+            const entries = groups[monthKey];
+            const monthTotal = entries.reduce((s, e) => s + (e.item.val || 0), 0);
+
+            // Month heading
+            const heading = document.createElement('div');
+            heading.className = 'atp-month-heading';
+            heading.innerHTML = `<span>${monthKey}</span><span class="atp-month-total">₹${monthTotal.toLocaleString('en-IN')}</span>`;
+            body.appendChild(heading);
+
+            entries.forEach(({ item, realIndex, d }) => {
+                const cat     = categories.find(c => c.id === item.catId);
+                const p       = cat ? palettes[cat.pIndex % palettes.length] : palettes[0];
+                const catName = cat ? cat.name : 'Deleted';
+                const day     = d.getDate ? d.getDate() : '?';
+                const wd      = d.getDay  ? weekdays[d.getDay()] : '';
+                const time    = d.getDate ? d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
+
+                const row = document.createElement('div');
+                row.className = 'atp-row';
+                row.onclick   = () => { closeAllTxn(); openTxnModal(realIndex); };
+                row.innerHTML = `
+                    <div class="atp-date-col">
+                        <div class="atp-day">${day}</div>
+                        <div class="atp-weekday">${wd}</div>
+                    </div>
+                    <div class="atp-mid-col">
+                        <div class="atp-txn-name">${item.desc}</div>
+                        <span class="atp-cat-tag" style="background:${p.base}18;color:${p.base}">${catName}</span>
+                        <div class="atp-time">${time}</div>
+                    </div>
+                    <div class="atp-amt-col">−₹${item.val.toLocaleString('en-IN')}</div>`;
+                body.appendChild(row);
+            });
+        });
+    }
+
+    function closeAllTxn() {
+        document.getElementById('all-txn-page').classList.remove('active');
+    }
+
     window.onload = () => {
         if (localStorage.getItem('darkMode') === 'true') document.body.classList.add('dark');
         checkMonthReset();
@@ -949,6 +1096,16 @@
         gsiLoaded();
     };
 </script>
+
+<!-- All Transactions Page -->
+<div id="all-txn-page">
+    <div class="atp-header">
+        <button class="atp-back-btn" onclick="closeAllTxn()"><i class="fa-solid fa-arrow-left"></i></button>
+        <span class="atp-title">All Transactions</span>
+        <span class="atp-total" id="atp-total-label"></span>
+    </div>
+    <div class="atp-body" id="atp-body"></div>
+</div>
 
 </body>
 </html>
