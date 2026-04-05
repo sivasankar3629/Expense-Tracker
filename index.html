@@ -297,6 +297,31 @@
         .atp-amt-col { font-weight: 800; font-size: 0.92rem; color: var(--danger); flex-shrink: 0; text-align: right; }
 
         .atp-empty { text-align: center; padding: 60px 20px; color: var(--sub); font-size: 0.85rem; opacity: 0.7; }
+
+        /* Filter bar */
+        .atp-filter-bar {
+            position: sticky; top: 61px; z-index: 9;
+            background: var(--card-bg);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--card-border);
+            padding: 10px 16px;
+            display: flex; gap: 8px; overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .atp-filter-bar::-webkit-scrollbar { display: none; }
+        .atp-pill {
+            flex-shrink: 0; padding: 6px 14px; border-radius: 20px;
+            border: 1.5px solid var(--stroke);
+            background: transparent; color: var(--sub);
+            font-family: inherit; font-size: 0.72rem; font-weight: 800;
+            cursor: pointer; transition: all 0.18s;
+            white-space: nowrap; text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .atp-pill:hover { border-color: var(--accent); color: var(--text); }
+        .atp-pill.active {
+            background: var(--accent); border-color: var(--accent);
+            color: #fff;
+        }
     </style>
 </head>
 <body>
@@ -1013,24 +1038,112 @@
     }
 
     // ── ALL TRANSACTIONS PAGE ──
+    let atpActiveFilter = 'all';
+
     function openAllTxn() {
-        const page  = document.getElementById('all-txn-page');
+        atpActiveFilter = 'all';
+        document.getElementById('all-txn-page').classList.add('active');
+        buildFilterPills();
+        renderAllTxn();
+    }
+
+    function closeAllTxn() {
+        document.getElementById('all-txn-page').classList.remove('active');
+    }
+
+    function setFilter(catId) {
+        atpActiveFilter = catId;
+        // Update pill active states
+        document.querySelectorAll('.atp-pill').forEach(p => {
+            p.classList.toggle('active', p.dataset.cat === catId);
+        });
+        renderAllTxn();
+    }
+
+    function buildFilterPills() {
+        const bar = document.getElementById('atp-filter-bar');
+        bar.innerHTML = '';
+
+        // "All" pill
+        const allPill = document.createElement('button');
+        allPill.className = 'atp-pill active';
+        allPill.dataset.cat = 'all';
+        allPill.textContent = 'All';
+        allPill.onclick = () => setFilter('all');
+        bar.appendChild(allPill);
+
+        // One pill per category that has at least one transaction
+        const usedCatIds = new Set(history.map(i => i.catId));
+        categories.forEach(cat => {
+            if (!usedCatIds.has(cat.id)) return;
+            const p = palettes[cat.pIndex % palettes.length];
+            const pill = document.createElement('button');
+            pill.className = 'atp-pill';
+            pill.dataset.cat = cat.id;
+            pill.textContent = cat.name;
+            pill.style.setProperty('--pill-color', p.base);
+            pill.onclick = () => setFilter(cat.id);
+            // Color the active state for this pill to match category color
+            pill.addEventListener('mouseenter', () => { if (pill.dataset.cat !== atpActiveFilter) pill.style.color = p.base; });
+            pill.addEventListener('mouseleave', () => { if (pill.dataset.cat !== atpActiveFilter) pill.style.color = ''; });
+            bar.appendChild(pill);
+        });
+
+        // Style active pill in category color when it becomes active
+        bar.querySelectorAll('.atp-pill[data-cat]').forEach(pill => {
+            if (pill.dataset.cat === 'all') return;
+            const cat = categories.find(c => c.id === pill.dataset.cat);
+            if (!cat) return;
+            const p = palettes[cat.pIndex % palettes.length];
+            const origOnClick = pill.onclick;
+            pill.onclick = () => {
+                setFilter(cat.id);
+                // Tint active pill with category color
+                document.querySelectorAll('.atp-pill').forEach(pp => {
+                    pp.style.background = '';
+                    pp.style.borderColor = '';
+                    pp.style.color = '';
+                });
+                pill.style.background = p.base;
+                pill.style.borderColor = p.base;
+                pill.style.color = '#fff';
+            };
+        });
+
+        // "All" pill resets colors
+        allPill.onclick = () => {
+            setFilter('all');
+            document.querySelectorAll('.atp-pill').forEach(pp => {
+                pp.style.background = '';
+                pp.style.borderColor = '';
+                pp.style.color = '';
+            });
+            allPill.style.background = 'var(--accent)';
+            allPill.style.borderColor = 'var(--accent)';
+            allPill.style.color = '#fff';
+        };
+    }
+
+    function renderAllTxn() {
         const body  = document.getElementById('atp-body');
         const total = document.getElementById('atp-total-label');
-        page.classList.add('active');
         body.innerHTML = '';
 
-        if (!history.length) {
-            body.innerHTML = '<div class="atp-empty"><i class="fa-solid fa-receipt" style="font-size:2rem;display:block;margin-bottom:12px;opacity:0.4;"></i>No transactions yet.</div>';
-            total.textContent = '';
+        // Apply category filter
+        const filtered = history.map((item, realIndex) => ({ item, realIndex }))
+            .filter(({ item }) => atpActiveFilter === 'all' || item.catId === atpActiveFilter);
+
+        if (!filtered.length) {
+            body.innerHTML = '<div class="atp-empty"><i class="fa-solid fa-filter" style="font-size:2rem;display:block;margin-bottom:12px;opacity:0.4;"></i>No transactions in this category.</div>';
+            total.textContent = '₹0';
             return;
         }
 
-        // Parse and sort chronologically (oldest first within each month, newest month first)
-        const parsed = history.map((item, realIndex) => {
+        // Parse dates and sort newest first
+        const parsed = filtered.map(({ item, realIndex }) => {
             const d = parseDate(item.date);
             return { item, realIndex, d: isNaN(d) ? new Date(0) : d };
-        }).sort((a, b) => b.d - a.d); // newest first overall
+        }).sort((a, b) => b.d - a.d);
 
         // Group by "Month Year"
         const groups = {};
@@ -1041,9 +1154,9 @@
             groups[key].push(entry);
         });
 
-        // Grand total
-        const grandTotal = history.reduce((s, i) => s + (i.val || 0), 0);
-        total.textContent = '₹' + grandTotal.toLocaleString('en-IN');
+        // Filtered total
+        const filteredTotal = filtered.reduce((s, { item }) => s + (item.val || 0), 0);
+        total.textContent = '₹' + filteredTotal.toLocaleString('en-IN');
 
         const weekdays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
@@ -1051,7 +1164,6 @@
             const entries = groups[monthKey];
             const monthTotal = entries.reduce((s, e) => s + (e.item.val || 0), 0);
 
-            // Month heading
             const heading = document.createElement('div');
             heading.className = 'atp-month-heading';
             heading.innerHTML = `<span>${monthKey}</span><span class="atp-month-total">₹${monthTotal.toLocaleString('en-IN')}</span>`;
@@ -1062,12 +1174,12 @@
                 const p       = cat ? palettes[cat.pIndex % palettes.length] : palettes[0];
                 const catName = cat ? cat.name : 'Deleted';
                 const day     = d.getDate ? d.getDate() : '?';
-                const wd      = d.getDay  ? weekdays[d.getDay()] : '';
-                const time    = d.getDate ? d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
+                const wd      = d.getDay !== undefined ? weekdays[d.getDay()] : '';
+                const time    = d.toLocaleTimeString ? d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
 
                 const row = document.createElement('div');
                 row.className = 'atp-row';
-                row.onclick   = () => { closeAllTxn(); openTxnModal(realIndex); };
+                row.onclick = () => { closeAllTxn(); openTxnModal(realIndex); };
                 row.innerHTML = `
                     <div class="atp-date-col">
                         <div class="atp-day">${day}</div>
@@ -1082,10 +1194,6 @@
                 body.appendChild(row);
             });
         });
-    }
-
-    function closeAllTxn() {
-        document.getElementById('all-txn-page').classList.remove('active');
     }
 
     window.onload = () => {
@@ -1104,6 +1212,7 @@
         <span class="atp-title">All Transactions</span>
         <span class="atp-total" id="atp-total-label"></span>
     </div>
+    <div class="atp-filter-bar" id="atp-filter-bar"></div>
     <div class="atp-body" id="atp-body"></div>
 </div>
 
