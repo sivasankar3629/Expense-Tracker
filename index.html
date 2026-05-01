@@ -88,9 +88,23 @@
         }
         .card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
         .card-label { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.9; }
-        .amount { font-size: 2rem; font-weight: 800; margin-bottom: 12px; letter-spacing: -0.03em; }
+        .amount { font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+        .amount-row { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 12px; gap: 8px; }
+        .card-of { font-size: 0.68rem; font-weight: 700; opacity: 0.75; }
+        .card-rem { font-size: 0.72rem; font-weight: 700; opacity: 0.85; white-space: nowrap; padding-bottom: 3px; }
+        .card-rem.over { opacity: 1; background: rgba(255,80,80,0.3); border-radius: 6px; padding: 2px 8px 3px; font-weight: 800; }
         .progress-track { background: rgba(255,255,255,0.25); height: 6px; border-radius: 10px; overflow: hidden; }
         .progress-fill { height: 100%; background: #fff; transition: width 0.8s ease-out; }
+        .budget-card.overbudget .amount { color: #ffd6d6; }
+        .budget-card.overbudget .progress-fill { background: rgba(255,160,160,0.9); }
+        .budget-card.overbudget .progress-track { background: rgba(255,80,80,0.35); }
+        .overbudget-label { display: none; }
+        .budget-card.overbudget .overbudget-label {
+            display: inline-block; font-size: 0.58rem; font-weight: 800;
+            background: rgba(255,80,80,0.3); border-radius: 6px;
+            padding: 2px 7px; margin-left: 8px; letter-spacing: 0.05em;
+            vertical-align: middle; text-transform: uppercase;
+        }
 
         .input-group {
             background: var(--surface); border-radius: 20px;
@@ -752,14 +766,28 @@
         cardsEl.innerHTML = selEl.innerHTML = editEl.innerHTML = '';
 
         categories.forEach(cat => {
-            const p   = palettes[cat.pIndex % palettes.length];
-            const pct = Math.max(0, Math.min(100, (cat.balance / cat.limit) * 100));
-            cardsEl.innerHTML += `
-                <div class="budget-card" style="background:linear-gradient(135deg,${p.grad[0]},${p.grad[1]})">
-                    <div class="card-top"><span class="card-label">${cat.name}</span></div>
-                    <div class="amount">₹${Math.max(0,cat.balance).toLocaleString('en-IN')}</div>
-                    <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
-                </div>`;
+            const p      = palettes[cat.pIndex % palettes.length];
+            const spent  = cat.limit - cat.balance;
+            const isOver = cat.balance < 0;
+            const pct    = Math.min(100, Math.max(0, (spent / cat.limit) * 100));
+
+            const spentDisplay = '\u20b9' + Math.abs(spent).toLocaleString('en-IN');
+            const remDisplay   = isOver
+                ? '<span class="card-rem over">\u20b9' + Math.abs(cat.balance).toLocaleString('en-IN') + ' over</span>'
+                : '<span class="card-rem">\u20b9' + cat.balance.toLocaleString('en-IN') + ' left</span>';
+            const overClass = isOver ? ' overbudget' : '';
+
+            cardsEl.innerHTML += '<div class="budget-card' + overClass + '" style="background:linear-gradient(135deg,' + p.grad[0] + ',' + p.grad[1] + ')">'
+                + '<div class="card-top">'
+                + '<span class="card-label">' + cat.name + '</span>'
+                + '<span class="card-of">of \u20b9' + cat.limit.toLocaleString('en-IN') + '</span>'
+                + '</div>'
+                + '<div class="amount-row">'
+                + '<div class="amount">' + spentDisplay + '</div>'
+                + remDisplay
+                + '</div>'
+                + '<div class="progress-track"><div class="progress-fill" style="width:' + pct + '%"></div></div>'
+                + '</div>';
             selEl.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
             editEl.innerHTML += `
                 <div class="cat-edit-row">
