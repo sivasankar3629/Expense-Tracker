@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script>
+      // GitHub Pages 404 redirect trick for SPAs
+      // Redirects all 404s back to index.html with the path preserved
+      var path = window.location.pathname.replace('/expense-tracker', '');
+      window.location.replace('/expense-tracker/' + (path ? '?p=' + path.slice(1) : ''));
+    </script>
+  </head>
+</html>
