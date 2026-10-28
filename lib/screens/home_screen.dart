@@ -9,9 +9,12 @@ import 'backup_screen.dart';
 import 'expense_form_screen.dart';
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key, required this.store});
+  const HomeScreen({super.key, required this.store, this.versionLabel});
 
   final ExpenseStore store;
+
+  /// Shown at the bottom of the menu so it's easy to tell which build is installed.
+  final String? versionLabel;
 
   void _openAddExpense(BuildContext context) {
     Navigator.of(context).push(
@@ -87,6 +90,14 @@ class HomeScreen extends StatelessWidget {
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
+              if (versionLabel != null) ...[
+                const PopupMenuDivider(),
+                PopupMenuItem(
+                  enabled: false,
+                  height: 36,
+                  child: Text(versionLabel!, style: Theme.of(context).textTheme.bodySmall),
+                ),
+              ],
             ],
           ),
           const SizedBox(width: 4),

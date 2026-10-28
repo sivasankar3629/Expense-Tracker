@@ -55,7 +55,9 @@ jobs:
           keyAlias=$KEY_ALIAS
           EOF
 
-      - run: flutter build apk --release
+      # The run number becomes the Android version code, so every build is
+      # newer than the last and shows up as e.g. "0.1.0 (build 7)".
+      - run: flutter build apk --release --build-number=${{ github.run_number }}
 
       - name: Rename APK
         run: |
@@ -80,5 +82,5 @@ jobs:
           gh release delete "$TAG" --cleanup-tag --yes || true
           gh release create "$TAG" dist/*.apk \
             --target "$GITHUB_SHA" \
-            --title "Latest build" \
-            --notes "Built from ${GITHUB_SHA::7}."
+            --title "Build ${GITHUB_RUN_NUMBER}" \
+            --notes "Build ${GITHUB_RUN_NUMBER}, from commit ${GITHUB_SHA::7}. In the app, the ⋮ menu shows which build is installed."

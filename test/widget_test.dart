@@ -126,6 +126,19 @@ void main() {
     expect(find.text('Deleted "Tea"'), findsOneWidget);
   });
 
+  testWidgets('the menu shows which build is installed', (tester) async {
+    await tester.pumpWidget(ExpenseTrackerApp(
+      store: ExpenseStore(),
+      versionLabel: 'Version 0.1.0 (build 7)',
+    ));
+
+    await tester.tap(find.byTooltip('More'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Backup & restore'), findsOneWidget);
+    expect(find.text('Version 0.1.0 (build 7)'), findsOneWidget);
+  });
+
   test('accounts with expenses cannot be deleted', () {
     final store = ExpenseStore();
     final bank = store.addAccount('SBI Savings', AccountType.bank);
