@@ -1,11 +1,17 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'data/expense_storage.dart';
+import 'data/sqlite_storage.dart';
 import 'screens/home_screen.dart';
 import 'state/expense_store.dart';
 import 'theme.dart';
 
-void main() {
-  runApp(ExpenseTrackerApp(store: ExpenseStore()));
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // SQLite isn't available on web, so the web preview keeps data in memory only.
+  final ExpenseStorage storage = kIsWeb ? InMemoryStorage() : await SqliteStorage.open();
+  runApp(ExpenseTrackerApp(store: await ExpenseStore.open(storage)));
 }
 
 class ExpenseTrackerApp extends StatelessWidget {
