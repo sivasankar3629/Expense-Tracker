@@ -63,12 +63,12 @@ jobs:
         run: |
           mkdir -p dist
           cp build/app/outputs/flutter-apk/app-release.apk \
-            dist/expense-tracker.apk
+            dist/kipto.apk
 
       # Downloadable from the run's summary page (zipped, kept 30 days).
       - uses: actions/upload-artifact@v4
         with:
-          name: expense-tracker
+          name: kipto
           path: dist/*.apk
           retention-days: 30
 

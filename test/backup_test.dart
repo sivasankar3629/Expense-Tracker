@@ -80,7 +80,7 @@ void main() {
 
     test('names the file after the backup date', () {
       final backup = Backup(data: const StoredData(), exportedAt: DateTime(2026, 3, 7));
-      expect(backup.fileName, 'expense-tracker-backup-2026-03-07.json');
+      expect(backup.fileName, 'kipto-backup-2026-03-07.json');
     });
 
     test('rejects files that are not backups', () {
@@ -133,7 +133,7 @@ void main() {
       await tester.tap(find.text('Back up now'));
       await tester.pumpAndSettle();
 
-      expect(files.savedName, startsWith('expense-tracker-backup-'));
+      expect(files.savedName, startsWith('kipto-backup-'));
       final saved = Backup.decode(utf8.decode(files.savedBytes!));
       expect(saved.data.expenses.map((e) => e.id), ['e2', 'e1']);
       expect(saved.data.accounts.single.id, _card.id);

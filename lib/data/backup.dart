@@ -27,11 +27,11 @@ class Backup {
   final StoredData data;
   final DateTime exportedAt;
 
-  /// e.g. "expense-tracker-backup-2026-10-28.json"
+  /// e.g. "kipto-backup-2026-10-28.json"
   String get fileName {
     String two(int n) => n.toString().padLeft(2, '0');
     final d = exportedAt;
-    return 'expense-tracker-backup-${d.year}-${two(d.month)}-${two(d.day)}.json';
+    return 'kipto-backup-${d.year}-${two(d.month)}-${two(d.day)}.json';
   }
 
   String encode() => const JsonEncoder.withIndent('  ').convert({

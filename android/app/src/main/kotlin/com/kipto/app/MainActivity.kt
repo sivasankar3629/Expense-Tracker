@@ -1,4 +1,4 @@
-package com.sivasankar.expense_tracker
+package com.kipto.app
 
 import io.flutter.embedding.android.FlutterActivity
 
