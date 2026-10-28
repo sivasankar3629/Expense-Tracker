@@ -60,13 +60,39 @@ class ExpenseStore extends ChangeNotifier {
   Account get lastUsedAccount => accountById(_lastUsedAccountId) ?? Account.cash;
 
   void addExpense(Expense expense) {
-    _expenses
-      ..add(expense)
-      ..sort(_newestFirst);
+    _insert(expense);
     _lastUsedAccountId = expense.accountId;
     notifyListeners();
     _save(() => _storage.saveExpense(expense));
     _save(() => _storage.saveLastUsedAccountId(expense.accountId));
+  }
+
+  /// Replaces the expense with the same id, e.g. after editing it.
+  void updateExpense(Expense updated) {
+    _expenses.removeWhere((e) => e.id == updated.id);
+    _insert(updated);
+    notifyListeners();
+    _save(() => _storage.saveExpense(updated));
+  }
+
+  void deleteExpense(Expense expense) {
+    _expenses.removeWhere((e) => e.id == expense.id);
+    notifyListeners();
+    _save(() => _storage.deleteExpense(expense.id));
+  }
+
+  /// Puts back a deleted expense (for undo) without changing the last used account.
+  void restoreExpense(Expense expense) {
+    if (_expenses.any((e) => e.id == expense.id)) return;
+    _insert(expense);
+    notifyListeners();
+    _save(() => _storage.saveExpense(expense));
+  }
+
+  void _insert(Expense expense) {
+    _expenses
+      ..add(expense)
+      ..sort(_newestFirst);
   }
 
   bool isNicknameTaken(String nickname, {String? exceptId}) {

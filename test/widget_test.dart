@@ -68,6 +68,64 @@ void main() {
     expect(store.lastUsedAccount.id, card.id);
   });
 
+  testWidgets('tapping an expense edits it in place', (tester) async {
+    final store = ExpenseStore();
+    await tester.pumpWidget(ExpenseTrackerApp(store: store));
+    await openAddExpense(tester);
+    await fillAndSubmit(tester, 'Tea', '12');
+    final originalId = store.expenses.single.id;
+
+    await tester.tap(find.text('Tea'));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit expense'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, '12'), findsOneWidget);
+
+    await tester.enterText(find.widgetWithText(TextFormField, 'Title'), 'Masala tea');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Amount'), '15.50');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Masala tea'), findsOneWidget);
+    expect(find.text('Tea'), findsNothing);
+    expect(store.expenses.single.id, originalId);
+    expect(store.expenses.single.amount, 15.5);
+  });
+
+  testWidgets('swiping deletes an expense and Undo brings it back', (tester) async {
+    final store = ExpenseStore();
+    await tester.pumpWidget(ExpenseTrackerApp(store: store));
+    await openAddExpense(tester);
+    await fillAndSubmit(tester, 'Tea', '12');
+
+    await tester.drag(find.text('Tea'), const Offset(-600, 0));
+    await tester.pumpAndSettle();
+
+    expect(store.expenses, isEmpty);
+    expect(find.text('No expenses yet'), findsOneWidget);
+    expect(find.text('Deleted "Tea"'), findsOneWidget);
+
+    await tester.tap(find.text('Undo'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tea'), findsOneWidget);
+    expect(store.expenses, hasLength(1));
+  });
+
+  testWidgets('deleting from the edit screen offers Undo too', (tester) async {
+    final store = ExpenseStore();
+    await tester.pumpWidget(ExpenseTrackerApp(store: store));
+    await openAddExpense(tester);
+    await fillAndSubmit(tester, 'Tea', '12');
+
+    await tester.tap(find.text('Tea'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Delete'));
+    await tester.pumpAndSettle();
+
+    expect(store.expenses, isEmpty);
+    expect(find.text('Deleted "Tea"'), findsOneWidget);
+  });
+
   test('accounts with expenses cannot be deleted', () {
     final store = ExpenseStore();
     final bank = store.addAccount('SBI Savings', AccountType.bank);

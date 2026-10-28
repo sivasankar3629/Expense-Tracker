@@ -84,6 +84,41 @@ void main() {
     expect(store.accountById(third.id), isNotNull);
   });
 
+  test('edits and deletions survive a relaunch', () async {
+    final storage = await openStorage();
+    var store = await ExpenseStore.open(storage);
+    final tea = Expense(
+      title: 'Tea',
+      amount: 12,
+      dateTime: DateTime(2026, 10, 28, 9),
+      accountId: Account.cash.id,
+    );
+    final lunch = Expense(
+      title: 'Lunch',
+      amount: 180,
+      dateTime: DateTime(2026, 10, 28, 13),
+      accountId: Account.cash.id,
+    );
+    store
+      ..addExpense(tea)
+      ..addExpense(lunch)
+      ..updateExpense(Expense(
+        id: tea.id,
+        title: 'Masala tea',
+        amount: 15.5,
+        dateTime: tea.dateTime,
+        accountId: tea.accountId,
+      ))
+      ..deleteExpense(lunch);
+
+    store = await relaunch(storage, store);
+
+    expect(store.expenses, hasLength(1));
+    expect(store.expenses.single.id, tea.id);
+    expect(store.expenses.single.title, 'Masala tea');
+    expect(store.expenses.single.amount, 15.5);
+  });
+
   test('amounts add up exactly after a relaunch', () async {
     final storage = await openStorage();
     var store = await ExpenseStore.open(storage);

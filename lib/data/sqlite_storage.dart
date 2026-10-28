@@ -103,6 +103,11 @@ class SqliteStorage implements ExpenseStorage {
   }
 
   @override
+  Future<void> deleteExpense(String id) async {
+    await _db.delete('expenses', where: 'id = ?', whereArgs: [id]);
+  }
+
+  @override
   Future<void> saveAccount(Account account) async {
     final values = {'nickname': account.nickname, 'type': account.type.name};
     // Update in place rather than REPLACE, which would move the account to the

@@ -5,18 +5,48 @@ import '../models/expense.dart';
 import '../state/expense_store.dart';
 import '../utils/format.dart';
 import 'accounts_screen.dart';
-import 'add_expense_screen.dart';
+import 'expense_form_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key, required this.store});
 
   final ExpenseStore store;
 
-  Future<void> _openAddExpense(BuildContext context) async {
-    final expense = await Navigator.of(context).push<Expense>(
-      MaterialPageRoute(builder: (_) => AddExpenseScreen(store: store)),
+  void _openAddExpense(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ExpenseFormScreen(store: store)),
     );
-    if (expense != null) store.addExpense(expense);
+  }
+
+  Future<void> _openEditExpense(BuildContext context, Expense expense) async {
+    final result = await Navigator.of(context).push<ExpenseFormResult>(
+      MaterialPageRoute(builder: (_) => ExpenseFormScreen(store: store, initial: expense)),
+    );
+    if (result == ExpenseFormResult.deleted && context.mounted) {
+      _showUndo(context, expense);
+    }
+  }
+
+  void _deleteExpense(BuildContext context, Expense expense) {
+    store.deleteExpense(expense);
+    _showUndo(context, expense);
+  }
+
+  void _showUndo(BuildContext context, Expense expense) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('Deleted "${expense.title}"'),
+          behavior: SnackBarBehavior.floating,
+          // Snack bars with an action stay up by default; let this one time out.
+          persist: false,
+          action: SnackBarAction(
+            label: 'Undo',
+            onPressed: () => store.restoreExpense(expense),
+          ),
+        ),
+      );
   }
 
   void _openAccounts(BuildContext context) {
@@ -41,7 +71,7 @@ class HomeScreen extends StatelessWidget {
       ),
       body: ListenableBuilder(
         listenable: store,
-        builder: (context, _) => _buildBody(),
+        builder: (context, _) => _buildBody(context),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openAddExpense(context),
@@ -51,7 +81,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildBody(BuildContext context) {
     final expenses = store.expenses;
     final now = DateTime.now();
     final thisMonth = expenses
@@ -79,7 +109,13 @@ class HomeScreen extends StatelessWidget {
           const _EmptyState()
         else
           for (final MapEntry(key: month, value: items) in byMonth.entries)
-            _MonthSection(month: month, expenses: items, store: store),
+            _MonthSection(
+              month: month,
+              expenses: items,
+              store: store,
+              onTap: (expense) => _openEditExpense(context, expense),
+              onDelete: (expense) => _deleteExpense(context, expense),
+            ),
       ],
     );
   }
@@ -174,11 +210,15 @@ class _MonthSection extends StatelessWidget {
     required this.month,
     required this.expenses,
     required this.store,
+    required this.onTap,
+    required this.onDelete,
   });
 
   final String month;
   final List<Expense> expenses;
   final ExpenseStore store;
+  final ValueChanged<Expense> onTap;
+  final ValueChanged<Expense> onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -205,15 +245,50 @@ class _MonthSection extends StatelessWidget {
             children: [
               for (var i = 0; i < expenses.length; i++) ...[
                 if (i > 0) const Divider(indent: 76),
-                _ExpenseTile(
-                  expense: expenses[i],
-                  account: store.accountById(expenses[i].accountId),
+                Dismissible(
+                  key: ValueKey(expenses[i].id),
+                  direction: DismissDirection.endToStart,
+                  background: const _DeleteBackground(),
+                  onDismissed: (_) => onDelete(expenses[i]),
+                  child: InkWell(
+                    onTap: () => onTap(expenses[i]),
+                    child: _ExpenseTile(
+                      expense: expenses[i],
+                      account: store.accountById(expenses[i].accountId),
+                    ),
+                  ),
                 ),
               ],
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Revealed behind a row while it's swiped away.
+class _DeleteBackground extends StatelessWidget {
+  const _DeleteBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      color: scheme.errorContainer,
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.only(right: 24),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Delete',
+            style: TextStyle(color: scheme.onErrorContainer, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(width: 8),
+          Icon(Icons.delete_outline, color: scheme.onErrorContainer),
+        ],
+      ),
     );
   }
 }

@@ -18,7 +18,9 @@ class StoredData {
 /// Where expenses and accounts are saved between app launches.
 abstract interface class ExpenseStorage {
   Future<StoredData> load();
+  /// Inserts the expense, or replaces the one with the same id.
   Future<void> saveExpense(Expense expense);
+  Future<void> deleteExpense(String id);
   Future<void> saveAccount(Account account);
   Future<void> deleteAccount(String id);
   Future<void> saveLastUsedAccountId(String id);
@@ -31,6 +33,9 @@ class InMemoryStorage implements ExpenseStorage {
 
   @override
   Future<void> saveExpense(Expense expense) async {}
+
+  @override
+  Future<void> deleteExpense(String id) async {}
 
   @override
   Future<void> saveAccount(Account account) async {}

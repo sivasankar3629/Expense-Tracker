@@ -8,24 +8,43 @@ import '../utils/format.dart';
 import '../widgets/account_icon.dart';
 import '../widgets/account_picker_sheet.dart';
 
-class AddExpenseScreen extends StatefulWidget {
-  const AddExpenseScreen({super.key, required this.store});
+/// What happened on the form, so the caller can react (e.g. offer undo).
+enum ExpenseFormResult { saved, deleted }
+
+/// Adds a new expense, or edits [initial] when given. Saves straight to [store].
+class ExpenseFormScreen extends StatefulWidget {
+  const ExpenseFormScreen({super.key, required this.store, this.initial});
 
   final ExpenseStore store;
+  final Expense? initial;
 
   @override
-  State<AddExpenseScreen> createState() => _AddExpenseScreenState();
+  State<ExpenseFormScreen> createState() => _ExpenseFormScreenState();
 }
 
-class _AddExpenseScreenState extends State<AddExpenseScreen> {
+class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _amountController = TextEditingController();
-  final _notesController = TextEditingController();
+  late final _titleController = TextEditingController(text: widget.initial?.title);
+  late final _amountController = TextEditingController(
+    text: widget.initial == null ? null : _editableAmount(widget.initial!.amount),
+  );
+  late final _notesController = TextEditingController(text: widget.initial?.notes);
 
-  late DateTime _date = DateUtils.dateOnly(DateTime.now());
-  late TimeOfDay _time = TimeOfDay.now();
-  late Account _account = widget.store.lastUsedAccount;
+  late DateTime _date = DateUtils.dateOnly(widget.initial?.dateTime ?? DateTime.now());
+  late TimeOfDay _time = TimeOfDay.fromDateTime(widget.initial?.dateTime ?? DateTime.now());
+  late Account _account = _initialAccount();
+
+  bool get _isEditing => widget.initial != null;
+
+  Account _initialAccount() {
+    final initial = widget.initial;
+    if (initial == null) return widget.store.lastUsedAccount;
+    return widget.store.accountById(initial.accountId) ?? Account.cash;
+  }
+
+  /// "12" rather than "12.0", and "180.50" rather than "180.5".
+  static String _editableAmount(double amount) =>
+      amount.toStringAsFixed(amount == amount.roundToDouble() ? 0 : 2);
 
   @override
   void dispose() {
@@ -51,31 +70,31 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   }
 
   Future<void> _pickAccount() async {
-    final picked = await showAccountPicker(
-      context,
-      store: widget.store,
-      selected: _account,
-    );
+    final picked = await showAccountPicker(context, store: widget.store, selected: _account);
     if (picked != null) setState(() => _account = picked);
   }
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
-    Navigator.of(context).pop(
-      Expense(
-        title: _titleController.text.trim(),
-        amount: double.parse(_amountController.text),
-        notes: _notesController.text.trim(),
-        accountId: _account.id,
-        dateTime: DateTime(
-          _date.year,
-          _date.month,
-          _date.day,
-          _time.hour,
-          _time.minute,
-        ),
-      ),
+    final expense = Expense(
+      id: widget.initial?.id,
+      title: _titleController.text.trim(),
+      amount: double.parse(_amountController.text),
+      notes: _notesController.text.trim(),
+      accountId: _account.id,
+      dateTime: DateTime(_date.year, _date.month, _date.day, _time.hour, _time.minute),
     );
+    if (_isEditing) {
+      widget.store.updateExpense(expense);
+    } else {
+      widget.store.addExpense(expense);
+    }
+    Navigator.of(context).pop(ExpenseFormResult.saved);
+  }
+
+  void _delete() {
+    widget.store.deleteExpense(widget.initial!);
+    Navigator.of(context).pop(ExpenseFormResult.deleted);
   }
 
   @override
@@ -86,7 +105,18 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       color: theme.colorScheme.onSurface,
     );
     return Scaffold(
-      appBar: AppBar(title: const Text('Add expense')),
+      appBar: AppBar(
+        title: Text(_isEditing ? 'Edit expense' : 'Add expense'),
+        actions: [
+          if (_isEditing)
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: 'Delete',
+              onPressed: _delete,
+            ),
+          const SizedBox(width: 4),
+        ],
+      ),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -95,13 +125,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             // Amount first and large: it's the one field every expense needs.
             TextFormField(
               controller: _amountController,
-              autofocus: true,
+              // Pop the keyboard up for new expenses only; editing often
+              // starts with just looking.
+              autofocus: !_isEditing,
               style: amountStyle,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               textInputAction: TextInputAction.next,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
-              ],
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
               decoration: InputDecoration(
                 labelText: 'Amount',
                 prefixText: '₹ ',
@@ -171,10 +201,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             FilledButton.icon(
               onPressed: _submit,
               icon: const Icon(Icons.check),
-              label: const Text('Add'),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(56),
-              ),
+              label: Text(_isEditing ? 'Save' : 'Add'),
+              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
             ),
           ],
         ),
