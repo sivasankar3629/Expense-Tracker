@@ -11,6 +11,7 @@ class SqliteStorage implements ExpenseStorage {
   final Database _db;
 
   static const _lastUsedAccountKey = 'last_used_account_id';
+  static const _lastBackupAtKey = 'last_backup_at';
 
   /// [factory] and [path] are overridable so tests can use a desktop SQLite.
   static Future<SqliteStorage> open({DatabaseFactory? factory, String? path}) async {
@@ -56,11 +57,10 @@ class SqliteStorage implements ExpenseStorage {
   Future<StoredData> load() async {
     final accountRows = await _db.query('accounts', orderBy: 'rowid');
     final expenseRows = await _db.query('expenses', orderBy: 'date_time DESC, id DESC');
-    final settingRows = await _db.query(
-      'settings',
-      where: 'key = ?',
-      whereArgs: [_lastUsedAccountKey],
-    );
+    final settings = {
+      for (final row in await _db.query('settings')) row['key'] as String: row['value'] as String,
+    };
+    final lastBackupAt = settings[_lastBackupAtKey];
     return StoredData(
       accounts: [
         for (final row in accountRows)
@@ -81,23 +81,31 @@ class SqliteStorage implements ExpenseStorage {
             notes: row['notes'] as String,
           ),
       ],
-      lastUsedAccountId:
-          settingRows.isEmpty ? null : settingRows.first['value'] as String,
+      lastUsedAccountId: settings[_lastUsedAccountKey],
+      lastBackupAt: lastBackupAt == null ? null : DateTime.parse(lastBackupAt),
     );
   }
 
-  @override
-  Future<void> saveExpense(Expense expense) async {
-    await _db.insert(
-      'expenses',
-      {
+  static Map<String, Object?> _expenseRow(Expense expense) => {
         'id': expense.id,
         'title': expense.title,
         'amount_paise': (expense.amount * 100).round(),
         'date_time': expense.dateTime.millisecondsSinceEpoch,
         'account_id': expense.accountId,
         'notes': expense.notes,
-      },
+      };
+
+  static Map<String, Object?> _accountRow(Account account) => {
+        'id': account.id,
+        'nickname': account.nickname,
+        'type': account.type.name,
+      };
+
+  @override
+  Future<void> saveExpense(Expense expense) async {
+    await _db.insert(
+      'expenses',
+      _expenseRow(expense),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
@@ -109,7 +117,7 @@ class SqliteStorage implements ExpenseStorage {
 
   @override
   Future<void> saveAccount(Account account) async {
-    final values = {'nickname': account.nickname, 'type': account.type.name};
+    final values = _accountRow(account)..remove('id');
     // Update in place rather than REPLACE, which would move the account to the
     // end of the list by giving it a new rowid.
     final updated = await _db.update(
@@ -129,11 +137,39 @@ class SqliteStorage implements ExpenseStorage {
   }
 
   @override
-  Future<void> saveLastUsedAccountId(String id) async {
+  Future<void> saveLastUsedAccountId(String id) => _saveSetting(_lastUsedAccountKey, id);
+
+  @override
+  Future<void> saveLastBackupAt(DateTime time) =>
+      _saveSetting(_lastBackupAtKey, time.toIso8601String());
+
+  Future<void> _saveSetting(String key, String value) async {
     await _db.insert(
       'settings',
-      {'key': _lastUsedAccountKey, 'value': id},
+      {'key': key, 'value': value},
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+  }
+
+  @override
+  Future<void> replaceAll(StoredData data) async {
+    // One transaction: if anything fails, the old data is left untouched.
+    await _db.transaction((txn) async {
+      final batch = txn.batch()
+        ..delete('expenses')
+        ..delete('accounts')
+        ..delete('settings', where: 'key = ?', whereArgs: [_lastUsedAccountKey]);
+      for (final account in data.accounts) {
+        batch.insert('accounts', _accountRow(account));
+      }
+      for (final expense in data.expenses) {
+        batch.insert('expenses', _expenseRow(expense));
+      }
+      final lastUsed = data.lastUsedAccountId;
+      if (lastUsed != null) {
+        batch.insert('settings', {'key': _lastUsedAccountKey, 'value': lastUsed});
+      }
+      await batch.commit(noResult: true);
+    });
   }
 }

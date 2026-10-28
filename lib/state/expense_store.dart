@@ -14,7 +14,8 @@ class ExpenseStore extends ChangeNotifier {
       : _storage = storage ?? InMemoryStorage(),
         _accounts = [Account.cash, ...data.accounts],
         _expenses = [...data.expenses]..sort(_newestFirst),
-        _lastUsedAccountId = data.lastUsedAccountId ?? Account.cash.id;
+        _lastUsedAccountId = data.lastUsedAccountId ?? Account.cash.id,
+        _lastBackupAt = data.lastBackupAt;
 
   /// Creates a store pre-filled with everything previously saved in [storage].
   static Future<ExpenseStore> open(ExpenseStorage storage) async =>
@@ -24,6 +25,7 @@ class ExpenseStore extends ChangeNotifier {
   final List<Account> _accounts;
   final List<Expense> _expenses;
   String _lastUsedAccountId;
+  DateTime? _lastBackupAt;
   Future<void> _pendingWrites = Future.value();
 
   /// Completes once every change made so far has been saved.
@@ -39,6 +41,36 @@ class ExpenseStore extends ChangeNotifier {
   static int _newestFirst(Expense a, Expense b) {
     final byDate = b.dateTime.compareTo(a.dateTime);
     return byDate != 0 ? byDate : b.id.compareTo(a.id);
+  }
+
+  /// Everything a backup needs. Built-in Cash is left out; it always exists.
+  StoredData get snapshot => StoredData(
+        accounts: _accounts.where((a) => a.id != Account.cash.id).toList(),
+        expenses: List.of(_expenses),
+        lastUsedAccountId: _lastUsedAccountId,
+      );
+
+  DateTime? get lastBackupAt => _lastBackupAt;
+
+  void markBackedUp(DateTime time) {
+    _lastBackupAt = time;
+    notifyListeners();
+    _save(() => _storage.saveLastBackupAt(time));
+  }
+
+  /// Replaces all accounts and expenses with [data], e.g. from a backup.
+  void replaceAll(StoredData data) {
+    _accounts
+      ..clear()
+      ..add(Account.cash)
+      ..addAll(data.accounts);
+    _expenses
+      ..clear()
+      ..addAll(data.expenses)
+      ..sort(_newestFirst);
+    _lastUsedAccountId = data.lastUsedAccountId ?? Account.cash.id;
+    notifyListeners();
+    _save(() => _storage.replaceAll(data));
   }
 
   /// Newest first.

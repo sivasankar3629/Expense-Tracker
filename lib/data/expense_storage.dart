@@ -7,12 +7,16 @@ class StoredData {
     this.accounts = const [],
     this.expenses = const [],
     this.lastUsedAccountId,
+    this.lastBackupAt,
   });
 
   /// User-added accounts in the order they were created; excludes built-in Cash.
   final List<Account> accounts;
   final List<Expense> expenses;
   final String? lastUsedAccountId;
+
+  /// When this device last made a backup; not part of the backup itself.
+  final DateTime? lastBackupAt;
 }
 
 /// Where expenses and accounts are saved between app launches.
@@ -24,6 +28,10 @@ abstract interface class ExpenseStorage {
   Future<void> saveAccount(Account account);
   Future<void> deleteAccount(String id);
   Future<void> saveLastUsedAccountId(String id);
+  Future<void> saveLastBackupAt(DateTime time);
+
+  /// Swaps all accounts and expenses for [data] in one step (for restore).
+  Future<void> replaceAll(StoredData data);
 }
 
 /// Keeps nothing; used by tests and the web preview, where SQLite isn't available.
@@ -45,4 +53,10 @@ class InMemoryStorage implements ExpenseStorage {
 
   @override
   Future<void> saveLastUsedAccountId(String id) async {}
+
+  @override
+  Future<void> saveLastBackupAt(DateTime time) async {}
+
+  @override
+  Future<void> replaceAll(StoredData data) async {}
 }

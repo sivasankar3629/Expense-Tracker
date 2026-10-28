@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'package:expense_tracker/data/expense_storage.dart';
 import 'package:expense_tracker/data/sqlite_storage.dart';
 import 'package:expense_tracker/models/account.dart';
 import 'package:expense_tracker/models/expense.dart';
@@ -117,6 +118,44 @@ void main() {
     expect(store.expenses.single.id, tea.id);
     expect(store.expenses.single.title, 'Masala tea');
     expect(store.expenses.single.amount, 15.5);
+  });
+
+  test('a restore replaces everything and survives a relaunch', () async {
+    final storage = await openStorage();
+    var store = await ExpenseStore.open(storage);
+    store
+      ..addAccount('Old bank', AccountType.bank)
+      ..addExpense(Expense(
+        title: 'Old',
+        amount: 1,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: Account.cash.id,
+      ))
+      ..markBackedUp(DateTime(2026, 10, 28, 10, 32));
+
+    const card = Account(id: 'card-1', nickname: 'HDFC Millennia', type: AccountType.creditCard);
+    store.replaceAll(StoredData(
+      accounts: const [card],
+      expenses: [
+        Expense(
+          id: 'e1',
+          title: 'Restored',
+          amount: 99.99,
+          dateTime: DateTime(2026, 10, 1, 12),
+          accountId: card.id,
+        ),
+      ],
+      lastUsedAccountId: card.id,
+    ));
+
+    store = await relaunch(storage, store);
+
+    expect(store.accounts.map((a) => a.nickname), ['Cash', 'HDFC Millennia']);
+    expect(store.expenses.single.title, 'Restored');
+    expect(store.expenses.single.amount, 99.99);
+    expect(store.lastUsedAccount.id, card.id);
+    // The device's own backup history isn't overwritten by a restore.
+    expect(store.lastBackupAt, DateTime(2026, 10, 28, 10, 32));
   });
 
   test('amounts add up exactly after a relaunch', () async {

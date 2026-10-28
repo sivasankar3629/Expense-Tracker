@@ -5,6 +5,7 @@ import '../models/expense.dart';
 import '../state/expense_store.dart';
 import '../utils/format.dart';
 import 'accounts_screen.dart';
+import 'backup_screen.dart';
 import 'expense_form_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -55,6 +56,12 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
+  void _openBackup(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => BackupScreen(store: store)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -65,6 +72,22 @@ class HomeScreen extends StatelessWidget {
             icon: const Icon(Icons.account_balance_wallet_outlined),
             tooltip: 'Accounts & cards',
             onPressed: () => _openAccounts(context),
+          ),
+          PopupMenuButton<VoidCallback>(
+            tooltip: 'More',
+            onSelected: (action) => action(),
+            // `_` keeps the screen's context in scope; the menu's own context is
+            // disposed once it closes, before onSelected runs.
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: () => _openBackup(context),
+                child: const ListTile(
+                  leading: Icon(Icons.settings_backup_restore),
+                  title: Text('Backup & restore'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
           ),
           const SizedBox(width: 4),
         ],
