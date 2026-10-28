@@ -28,15 +28,13 @@ Future<void> main() async {
   ));
 }
 
-/// Null when Firebase isn't set up (or fails to start); the app then works
-/// exactly as before, just without cloud backup.
+/// Null on web (the preview build) or if Firebase fails to start; the app
+/// then works as before, just without cloud backup.
 Future<CloudSync?> _startCloudSync(SyncedStorage storage, ExpenseStore store) async {
-  final options = FirebaseConfig.android;
-  final webClientId = FirebaseConfig.webClientId;
-  if (kIsWeb || options == null || webClientId == null) return null;
+  if (kIsWeb) return null;
   try {
-    await Firebase.initializeApp(options: options);
-    final auth = GoogleCloudAuth(webClientId: webClientId);
+    await Firebase.initializeApp(options: FirebaseConfig.android);
+    final auth = GoogleCloudAuth(webClientId: FirebaseConfig.webClientId);
     await auth.initialize();
     return CloudSync(
       auth: auth,
