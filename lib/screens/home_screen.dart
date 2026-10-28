@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../cloud/cloud_sync.dart';
 import '../models/account.dart';
 import '../models/expense.dart';
 import '../state/expense_store.dart';
@@ -9,9 +10,12 @@ import 'backup_screen.dart';
 import 'expense_form_screen.dart';
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key, required this.store, this.versionLabel});
+  const HomeScreen({super.key, required this.store, this.cloudSync, this.versionLabel});
 
   final ExpenseStore store;
+
+  /// Null when cloud backup isn't set up for this build.
+  final CloudSync? cloudSync;
 
   /// Shown at the bottom of the menu so it's easy to tell which build is installed.
   final String? versionLabel;
@@ -61,7 +65,7 @@ class HomeScreen extends StatelessWidget {
 
   void _openBackup(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => BackupScreen(store: store)),
+      MaterialPageRoute(builder: (_) => BackupScreen(store: store, cloudSync: cloudSync)),
     );
   }
 
@@ -71,6 +75,14 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Expenses'),
         actions: [
+          if (cloudSync case final sync?)
+            ListenableBuilder(
+              listenable: sync,
+              builder: (context, _) => _CloudStatusButton(
+                status: sync.status,
+                onPressed: () => _openBackup(context),
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.account_balance_wallet_outlined),
             tooltip: 'Accounts & cards',
@@ -297,6 +309,32 @@ class _MonthSection extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Shows at a glance whether changes are safely in the cloud.
+class _CloudStatusButton extends StatelessWidget {
+  const _CloudStatusButton({required this.status, required this.onPressed});
+
+  final CloudStatus status;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final (icon, tooltip, color) = switch (status) {
+      CloudStatus.signedOut => (Icons.cloud_off_outlined, 'Cloud backup is off', null),
+      CloudStatus.connecting ||
+      CloudStatus.syncing =>
+        (Icons.cloud_upload_outlined, 'Backing up…', scheme.primary),
+      CloudStatus.upToDate => (Icons.cloud_done_outlined, 'Backed up', scheme.primary),
+      CloudStatus.failing => (Icons.cloud_off_outlined, 'Backup problem', scheme.error),
+    };
+    return IconButton(
+      icon: Icon(icon, color: color),
+      tooltip: tooltip,
+      onPressed: onPressed,
     );
   }
 }

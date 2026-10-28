@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import '../cloud/cloud_sync.dart';
 import '../data/backup.dart';
 import '../data/backup_files.dart';
 import '../state/expense_store.dart';
@@ -11,10 +12,14 @@ class BackupScreen extends StatefulWidget {
   const BackupScreen({
     super.key,
     required this.store,
+    this.cloudSync,
     this.files = const SystemBackupFiles(),
   });
 
   final ExpenseStore store;
+
+  /// Null when cloud backup isn't set up for this build.
+  final CloudSync? cloudSync;
   final BackupFiles files;
 
   @override
@@ -84,7 +89,8 @@ class _BackupScreenState extends State<BackupScreen> {
             const SizedBox(height: 16),
             Text(
               'This replaces the ${_count(current.expenses.length, 'expense')} and '
-              '${_count(current.accounts.length, 'account')} in the app now. '
+              '${_count(current.accounts.length, 'account')} in the app now'
+              '${widget.cloudSync?.user != null ? ', and in your cloud backup' : ''}. '
               'It can’t be undone.',
             ),
           ],
@@ -141,14 +147,20 @@ class _BackupScreenState extends State<BackupScreen> {
         builder: (context, _) => ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           children: [
+            if (widget.cloudSync case final sync?) ...[
+              _CloudCard(sync: sync),
+              const _SectionLabel('Backup file'),
+            ],
             _ActionCard(
-              icon: Icons.cloud_upload_outlined,
+              icon: Icons.save_alt,
               title: 'Back up',
               description: 'Save all expenses, accounts and cards to a file. '
                   'Keep it somewhere safe, like Google Drive, so you can restore it '
                   'on a new phone.',
               status: _lastBackupText(context),
               buttonLabel: 'Back up now',
+              // With cloud backup on offer, it's the main action, not this.
+              outlined: widget.cloudSync != null,
               onPressed: _busy ? null : _backUp,
             ),
             const SizedBox(height: 16),
@@ -175,6 +187,145 @@ class _BackupScreenState extends State<BackupScreen> {
 }
 
 String _count(int n, String noun) => '$n $noun${n == 1 ? '' : 's'}';
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 10),
+      child: Text(
+        text,
+        style: theme.textTheme.titleSmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+/// Sign-in and live status for automatic cloud backup.
+class _CloudCard extends StatelessWidget {
+  const _CloudCard({required this.sync});
+
+  final CloudSync sync;
+
+  Future<void> _confirmSignOut(BuildContext context) async {
+    final waiting = sync.pendingChanges;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Turn off cloud backup?'),
+        content: Text(
+          waiting > 0
+              ? '${_count(waiting, 'change')} haven’t reached the cloud yet and won’t be backed up. '
+                  'Your data stays on this phone.'
+              : 'Your data stays on this phone and in the cloud. New changes won’t be '
+                  'backed up until you sign in again.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await sync.signOut();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: sync,
+      builder: (context, _) {
+        final theme = Theme.of(context);
+        final scheme = theme.colorScheme;
+        final user = sync.user;
+
+        final (IconData statusIcon, String statusText, Color statusColor) = switch (sync.status) {
+          CloudStatus.signedOut || CloudStatus.connecting => (
+              Icons.cloud_off_outlined,
+              'Off',
+              scheme.onSurfaceVariant,
+            ),
+          CloudStatus.syncing => (
+              Icons.cloud_upload_outlined,
+              'Backing up ${_count(sync.pendingChanges, 'change')}… '
+                  'They upload whenever you’re online.',
+              scheme.primary,
+            ),
+          CloudStatus.upToDate => (
+              Icons.cloud_done_outlined,
+              'All changes backed up',
+              scheme.primary,
+            ),
+          CloudStatus.failing => (
+              Icons.error_outline,
+              'Some changes didn’t reach the cloud. Your data is safe on this phone; '
+                  'tap Retry to upload them.',
+              scheme.error,
+            ),
+        };
+
+        return _ActionCard(
+          icon: Icons.cloud_outlined,
+          title: 'Cloud backup',
+          description: user == null
+              ? 'Sign in with Google and every change is backed up automatically, '
+                  'within seconds. It’s free, and only you can see your data.'
+              : 'Signed in as ${user.email ?? user.name ?? 'your Google account'}. '
+                  'Every change is backed up automatically.',
+          statusWidget: user == null && sync.error == null
+              ? null
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      user == null ? Icons.error_outline : statusIcon,
+                      size: 18,
+                      color: user == null ? scheme.error : statusColor,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        user == null ? sync.error! : statusText,
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: user == null ? scheme.error : statusColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+          buttonLabel: switch (sync.status) {
+            CloudStatus.connecting => 'Connecting…',
+            CloudStatus.signedOut => 'Sign in with Google',
+            CloudStatus.failing => 'Retry backup',
+            _ => 'Sign out',
+          },
+          outlined: sync.status == CloudStatus.syncing || sync.status == CloudStatus.upToDate,
+          onPressed: switch (sync.status) {
+            CloudStatus.connecting => null,
+            CloudStatus.signedOut => sync.signIn,
+            CloudStatus.failing => sync.retry,
+            _ => () => _confirmSignOut(context),
+          },
+          secondaryLabel: sync.status == CloudStatus.failing ? 'Sign out' : null,
+          onSecondary: () => _confirmSignOut(context),
+        );
+      },
+    );
+  }
+}
 
 class _BackupSummary extends StatelessWidget {
   const _BackupSummary({required this.backup});
@@ -221,7 +372,10 @@ class _ActionCard extends StatelessWidget {
     required this.buttonLabel,
     required this.onPressed,
     this.status,
+    this.statusWidget,
     this.outlined = false,
+    this.secondaryLabel,
+    this.onSecondary,
   });
 
   final IconData icon;
@@ -230,7 +384,14 @@ class _ActionCard extends StatelessWidget {
   final String buttonLabel;
   final VoidCallback? onPressed;
   final String? status;
+
+  /// Replaces the plain [status] line when richer content is needed.
+  final Widget? statusWidget;
   final bool outlined;
+
+  /// An optional quieter action shown under the main button.
+  final String? secondaryLabel;
+  final VoidCallback? onSecondary;
 
   @override
   Widget build(BuildContext context) {
@@ -274,7 +435,10 @@ class _ActionCard extends StatelessWidget {
               description,
               style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
             ),
-            if (status != null) ...[
+            if (statusWidget != null) ...[
+              const SizedBox(height: 12),
+              statusWidget!,
+            ] else if (status != null) ...[
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -292,6 +456,10 @@ class _ActionCard extends StatelessWidget {
               OutlinedButton(onPressed: onPressed, style: buttonStyle, child: Text(buttonLabel))
             else
               FilledButton(onPressed: onPressed, style: buttonStyle, child: Text(buttonLabel)),
+            if (secondaryLabel != null) ...[
+              const SizedBox(height: 4),
+              Center(child: TextButton(onPressed: onSecondary, child: Text(secondaryLabel!))),
+            ],
           ],
         ),
       ),
