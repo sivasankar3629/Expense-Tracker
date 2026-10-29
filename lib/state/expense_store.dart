@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../data/expense_storage.dart';
 import '../models/account.dart';
+import '../models/category.dart';
 import '../models/expense.dart';
 
 /// Holds all expenses and accounts, notifies listeners on change and saves
@@ -13,6 +14,7 @@ class ExpenseStore extends ChangeNotifier {
   ExpenseStore({ExpenseStorage? storage, StoredData data = const StoredData()})
       : _storage = storage ?? InMemoryStorage(),
         _accounts = [Account.cash, ...data.accounts],
+        _categories = [...data.categories],
         _expenses = [...data.expenses]..sort(_newestFirst),
         _lastUsedAccountId = data.lastUsedAccountId ?? Account.cash.id,
         _lastBackupAt = data.lastBackupAt;
@@ -23,6 +25,7 @@ class ExpenseStore extends ChangeNotifier {
 
   final ExpenseStorage _storage;
   final List<Account> _accounts;
+  final List<ExpenseCategory> _categories;
   final List<Expense> _expenses;
   String _lastUsedAccountId;
   DateTime? _lastBackupAt;
@@ -46,6 +49,7 @@ class ExpenseStore extends ChangeNotifier {
   /// Everything a backup needs. Built-in Cash is left out; it always exists.
   StoredData get snapshot => StoredData(
         accounts: _accounts.where((a) => a.id != Account.cash.id).toList(),
+        categories: List.of(_categories),
         expenses: List.of(_expenses),
         lastUsedAccountId: _lastUsedAccountId,
       );
@@ -64,6 +68,9 @@ class ExpenseStore extends ChangeNotifier {
       ..clear()
       ..add(Account.cash)
       ..addAll(data.accounts);
+    _categories
+      ..clear()
+      ..addAll(data.categories);
     _expenses
       ..clear()
       ..addAll(data.expenses)
@@ -166,5 +173,79 @@ class ExpenseStore extends ChangeNotifier {
     _accounts.removeWhere((a) => a.id == account.id);
     notifyListeners();
     _save(() => _storage.deleteAccount(account.id));
+  }
+
+  /// In the order they were created.
+  List<ExpenseCategory> get categories => List.unmodifiable(_categories);
+
+  ExpenseCategory? categoryById(String? id) {
+    if (id == null) return null;
+    for (final category in _categories) {
+      if (category.id == id) return category;
+    }
+    return null;
+  }
+
+  /// Most-used first (then by name), so the likeliest picks lead the list.
+  List<ExpenseCategory> get categoriesByUse {
+    final uses = <String, int>{};
+    for (final e in _expenses) {
+      final id = e.categoryId;
+      if (id != null) uses[id] = (uses[id] ?? 0) + 1;
+    }
+    return [..._categories]..sort((a, b) {
+        final byUse = (uses[b.id] ?? 0).compareTo(uses[a.id] ?? 0);
+        return byUse != 0 ? byUse : a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
+  }
+
+  bool isCategoryNameTaken(String name, {String? exceptId}) {
+    final wanted = name.trim().toLowerCase();
+    return _categories.any((c) => c.id != exceptId && c.name.toLowerCase() == wanted);
+  }
+
+  ExpenseCategory addCategory({
+    required String name,
+    required String iconKey,
+    required int colorValue,
+  }) {
+    final category = ExpenseCategory(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      name: name.trim(),
+      iconKey: iconKey,
+      colorValue: colorValue,
+    );
+    _categories.add(category);
+    notifyListeners();
+    _save(() => _storage.saveCategory(category));
+    return category;
+  }
+
+  void updateCategory(ExpenseCategory updated) {
+    final index = _categories.indexWhere((c) => c.id == updated.id);
+    if (index == -1) return;
+    _categories[index] = updated;
+    notifyListeners();
+    _save(() => _storage.saveCategory(updated));
+  }
+
+  int expenseCountForCategory(String categoryId) =>
+      _expenses.where((e) => e.categoryId == categoryId).length;
+
+  /// Removes the category; its expenses are kept and become uncategorised.
+  void deleteCategory(ExpenseCategory category) {
+    final affected = [
+      for (final e in _expenses)
+        if (e.categoryId == category.id) e.copyWith(clearCategory: true),
+    ];
+    for (final e in affected) {
+      _expenses[_expenses.indexWhere((x) => x.id == e.id)] = e;
+    }
+    _categories.removeWhere((c) => c.id == category.id);
+    notifyListeners();
+    for (final e in affected) {
+      _save(() => _storage.saveExpense(e));
+    }
+    _save(() => _storage.deleteCategory(category.id));
   }
 }

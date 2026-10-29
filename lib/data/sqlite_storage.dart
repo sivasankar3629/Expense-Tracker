@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../models/account.dart';
+import '../models/category.dart';
 import '../models/expense.dart';
 import 'expense_storage.dart';
 
@@ -19,12 +20,23 @@ class SqliteStorage implements ExpenseStorage {
     final dbPath = path ?? '${await dbFactory.getDatabasesPath()}/expense_tracker.db';
     final db = await dbFactory.openDatabase(
       dbPath,
-      options: OpenDatabaseOptions(version: 1, onCreate: _createTables),
+      options: OpenDatabaseOptions(
+        version: 2,
+        onCreate: (db, version) async {
+          await _createVersion1(db);
+          await _upgradeToVersion2(db);
+        },
+        onUpgrade: (db, oldVersion, newVersion) async {
+          if (oldVersion < 2) await _upgradeToVersion2(db);
+        },
+      ),
     );
     return SqliteStorage._(db);
   }
 
-  static Future<void> _createTables(Database db, int version) async {
+  /// The original tables. New installs build these and then apply each
+  /// upgrade, so every phone ends up with the same schema.
+  static Future<void> _createVersion1(Database db) async {
     final batch = db.batch()
       ..execute('''
         CREATE TABLE accounts (
@@ -51,11 +63,26 @@ class SqliteStorage implements ExpenseStorage {
     await batch.commit(noResult: true);
   }
 
+  /// Adds categories. Existing expenses simply have none.
+  static Future<void> _upgradeToVersion2(Database db) async {
+    final batch = db.batch()
+      ..execute('''
+        CREATE TABLE categories (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          icon TEXT NOT NULL,
+          color INTEGER NOT NULL
+        )''')
+      ..execute('ALTER TABLE expenses ADD COLUMN category_id TEXT');
+    await batch.commit(noResult: true);
+  }
+
   Future<void> close() => _db.close();
 
   @override
   Future<StoredData> load() async {
     final accountRows = await _db.query('accounts', orderBy: 'rowid');
+    final categoryRows = await _db.query('categories', orderBy: 'rowid');
     final expenseRows = await _db.query('expenses', orderBy: 'date_time DESC, id DESC');
     final settings = {
       for (final row in await _db.query('settings')) row['key'] as String: row['value'] as String,
@@ -70,6 +97,15 @@ class SqliteStorage implements ExpenseStorage {
             type: AccountType.values.byName(row['type'] as String),
           ),
       ],
+      categories: [
+        for (final row in categoryRows)
+          ExpenseCategory(
+            id: row['id'] as String,
+            name: row['name'] as String,
+            iconKey: row['icon'] as String,
+            colorValue: row['color'] as int,
+          ),
+      ],
       expenses: [
         for (final row in expenseRows)
           Expense(
@@ -78,6 +114,7 @@ class SqliteStorage implements ExpenseStorage {
             amount: (row['amount_paise'] as int) / 100,
             dateTime: DateTime.fromMillisecondsSinceEpoch(row['date_time'] as int),
             accountId: row['account_id'] as String,
+            categoryId: row['category_id'] as String?,
             notes: row['notes'] as String,
           ),
       ],
@@ -92,7 +129,15 @@ class SqliteStorage implements ExpenseStorage {
         'amount_paise': (expense.amount * 100).round(),
         'date_time': expense.dateTime.millisecondsSinceEpoch,
         'account_id': expense.accountId,
+        'category_id': expense.categoryId,
         'notes': expense.notes,
+      };
+
+  static Map<String, Object?> _categoryRow(ExpenseCategory category) => {
+        'id': category.id,
+        'name': category.name,
+        'icon': category.iconKey,
+        'color': category.colorValue,
       };
 
   static Map<String, Object?> _accountRow(Account account) => {
@@ -137,6 +182,26 @@ class SqliteStorage implements ExpenseStorage {
   }
 
   @override
+  Future<void> saveCategory(ExpenseCategory category) async {
+    final values = _categoryRow(category)..remove('id');
+    // Updated in place for the same reason as accounts: keep the list order.
+    final updated = await _db.update(
+      'categories',
+      values,
+      where: 'id = ?',
+      whereArgs: [category.id],
+    );
+    if (updated == 0) {
+      await _db.insert('categories', {'id': category.id, ...values});
+    }
+  }
+
+  @override
+  Future<void> deleteCategory(String id) async {
+    await _db.delete('categories', where: 'id = ?', whereArgs: [id]);
+  }
+
+  @override
   Future<void> saveLastUsedAccountId(String id) => _saveSetting(_lastUsedAccountKey, id);
 
   @override
@@ -158,9 +223,13 @@ class SqliteStorage implements ExpenseStorage {
       final batch = txn.batch()
         ..delete('expenses')
         ..delete('accounts')
+        ..delete('categories')
         ..delete('settings', where: 'key = ?', whereArgs: [_lastUsedAccountKey]);
       for (final account in data.accounts) {
         batch.insert('accounts', _accountRow(account));
+      }
+      for (final category in data.categories) {
+        batch.insert('categories', _categoryRow(category));
       }
       for (final expense in data.expenses) {
         batch.insert('expenses', _expenseRow(expense));

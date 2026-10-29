@@ -1,5 +1,6 @@
 import '../data/expense_storage.dart';
 import '../models/account.dart';
+import '../models/category.dart';
 import '../models/expense.dart';
 
 /// A signed-in user's copy of the data in the cloud.
@@ -14,6 +15,8 @@ abstract interface class CloudBackup {
   Future<void> deleteExpense(String id);
   Future<void> saveAccount(Account account);
   Future<void> deleteAccount(String id);
+  Future<void> saveCategory(ExpenseCategory category);
+  Future<void> deleteCategory(String id);
   Future<void> saveLastUsedAccountId(String id);
 
   /// Makes the cloud match [data] exactly, writing only what differs.
@@ -24,41 +27,34 @@ abstract interface class CloudBackup {
 /// lost on either side.
 ///
 /// - Records are matched by id; where both sides have one, the phone's wins.
-/// - A cloud account with the same type and nickname as a phone account (say
-///   "SBI Savings" added separately on two phones) is folded into the phone's,
-///   and its expenses follow it.
+/// - A cloud account or category with the same name as one on the phone (say
+///   "SBI Savings" or "Food" made separately on two phones) is folded into the
+///   phone's, and its expenses follow it.
 StoredData mergeForSignIn({required StoredData phone, required StoredData cloud}) {
-  String key(Account a) => '${a.type.name}:${a.nickname.trim().toLowerCase()}';
+  final accountRemap = <String, String>{};
+  final accounts = _mergeById(
+    phone: phone.accounts,
+    cloud: cloud.accounts,
+    id: (a) => a.id,
+    sameThing: (a) => '${a.type.name}:${a.nickname.trim().toLowerCase()}',
+    remap: accountRemap,
+  );
+  final categoryRemap = <String, String>{};
+  final categories = _mergeById(
+    phone: phone.categories,
+    cloud: cloud.categories,
+    id: (c) => c.id,
+    sameThing: (c) => c.name.trim().toLowerCase(),
+    remap: categoryRemap,
+  );
 
-  final phoneIds = {for (final a in phone.accounts) a.id};
-  final phoneByKey = {for (final a in phone.accounts) key(a): a};
-  final remap = <String, String>{};
-  final accounts = [...phone.accounts];
-  for (final account in cloud.accounts) {
-    if (phoneIds.contains(account.id)) continue;
-    final twin = phoneByKey[key(account)];
-    if (twin != null) {
-      remap[account.id] = twin.id;
-    } else {
-      accounts.add(account);
-      phoneByKey[key(account)] = account;
-    }
-  }
-
-  final expenses = {for (final e in cloud.expenses) e.id: e};
-  for (final e in expenses.values.toList()) {
-    final target = remap[e.accountId];
-    if (target != null) {
-      expenses[e.id] = Expense(
-        id: e.id,
-        title: e.title,
-        amount: e.amount,
-        dateTime: e.dateTime,
-        accountId: target,
-        notes: e.notes,
-      );
-    }
-  }
+  final expenses = {
+    for (final e in cloud.expenses)
+      e.id: e.copyWith(
+        accountId: accountRemap[e.accountId],
+        categoryId: categoryRemap[e.categoryId],
+      ),
+  };
   for (final e in phone.expenses) {
     expenses[e.id] = e;
   }
@@ -69,7 +65,34 @@ StoredData mergeForSignIn({required StoredData phone, required StoredData cloud}
       : phone.lastUsedAccountId ?? cloud.lastUsedAccountId;
   return StoredData(
     accounts: accounts,
+    categories: categories,
     expenses: expenses.values.toList(),
-    lastUsedAccountId: lastUsed == null ? null : remap[lastUsed] ?? lastUsed,
+    lastUsedAccountId: lastUsed == null ? null : accountRemap[lastUsed] ?? lastUsed,
   );
+}
+
+/// The phone's items, then cloud-only ones. Cloud items that are the same
+/// thing as a phone item (per [sameThing]) are dropped and recorded in [remap]
+/// as cloud id → phone id.
+List<T> _mergeById<T>({
+  required List<T> phone,
+  required List<T> cloud,
+  required String Function(T) id,
+  required String Function(T) sameThing,
+  required Map<String, String> remap,
+}) {
+  final phoneIds = {for (final item in phone) id(item)};
+  final byKey = {for (final item in phone) sameThing(item): item};
+  final merged = [...phone];
+  for (final item in cloud) {
+    if (phoneIds.contains(id(item))) continue;
+    final twin = byKey[sameThing(item)];
+    if (twin != null) {
+      remap[id(item)] = id(twin);
+    } else {
+      merged.add(item);
+      byKey[sameThing(item)] = item;
+    }
+  }
+  return merged;
 }

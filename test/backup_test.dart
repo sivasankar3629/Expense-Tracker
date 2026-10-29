@@ -8,6 +8,7 @@ import 'package:expense_tracker/data/backup.dart';
 import 'package:expense_tracker/data/backup_files.dart';
 import 'package:expense_tracker/data/expense_storage.dart';
 import 'package:expense_tracker/models/account.dart';
+import 'package:expense_tracker/models/category.dart';
 import 'package:expense_tracker/models/expense.dart';
 import 'package:expense_tracker/screens/backup_screen.dart';
 import 'package:expense_tracker/state/expense_store.dart';
@@ -76,6 +77,77 @@ void main() {
       expect(lunch.dateTime, DateTime(2026, 10, 27, 13, 5));
       expect(lunch.accountId, _card.id);
       expect(lunch.notes, 'With team');
+    });
+
+    test('round-trips categories and each expense’s category', () {
+      const food = ExpenseCategory(id: 'c1', name: 'Food', iconKey: 'food', colorValue: 0xFFE53935);
+      final original = Backup(
+        exportedAt: DateTime(2026, 10, 28),
+        data: StoredData(
+          categories: const [food],
+          expenses: [
+            Expense(
+              id: 'e1',
+              title: 'Lunch',
+              amount: 200,
+              dateTime: DateTime(2026, 10, 28, 13),
+              accountId: Account.cash.id,
+              categoryId: food.id,
+            ),
+            Expense(
+              id: 'e2',
+              title: 'Misc',
+              amount: 5,
+              dateTime: DateTime(2026, 10, 28, 14),
+              accountId: Account.cash.id,
+            ),
+          ],
+        ),
+      );
+      final restored = Backup.decode(original.encode());
+      expect(restored.data.categories.single.name, 'Food');
+      expect(restored.data.categories.single.colorValue, 0xFFE53935);
+      expect({for (final e in restored.data.expenses) e.id: e.categoryId}, {'e1': 'c1', 'e2': null});
+    });
+
+    test('still reads version 1 backups, made before categories existed', () {
+      final restored = Backup.decode(jsonEncode({
+        'app': 'expense_tracker',
+        'version': 1,
+        'exportedAt': '2026-10-20T10:00:00.000',
+        'lastUsedAccountId': 'cash',
+        'accounts': <Object?>[],
+        'expenses': [
+          {
+            'id': 'e1',
+            'title': 'Tea',
+            'amountPaise': 1200,
+            'dateTime': '2026-10-20T09:00:00.000',
+            'accountId': 'cash',
+            'notes': '',
+          },
+        ],
+      }));
+      expect(restored.data.categories, isEmpty);
+      expect(restored.data.expenses.single.categoryId, isNull);
+      expect(restored.data.expenses.single.amount, 12);
+    });
+
+    test('an expense pointing at a missing category becomes uncategorised', () {
+      final json = _json(Backup(
+        exportedAt: DateTime(2026),
+        data: StoredData(expenses: [
+          Expense(
+            id: 'e1',
+            title: 'Tea',
+            amount: 12,
+            dateTime: DateTime(2026),
+            accountId: Account.cash.id,
+            categoryId: 'gone',
+          ),
+        ]),
+      ));
+      expect(Backup.decode(jsonEncode(json)).data.expenses.single.categoryId, isNull);
     });
 
     test('names the file after the backup date', () {

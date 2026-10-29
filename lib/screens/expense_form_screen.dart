@@ -7,6 +7,7 @@ import '../state/expense_store.dart';
 import '../utils/format.dart';
 import '../widgets/account_icon.dart';
 import '../widgets/account_picker_sheet.dart';
+import '../widgets/category_picker.dart';
 
 /// What happened on the form, so the caller can react (e.g. offer undo).
 enum ExpenseFormResult { saved, deleted }
@@ -33,6 +34,8 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
   late DateTime _date = DateUtils.dateOnly(widget.initial?.dateTime ?? DateTime.now());
   late TimeOfDay _time = TimeOfDay.fromDateTime(widget.initial?.dateTime ?? DateTime.now());
   late Account _account = _initialAccount();
+  // Dropped if the category has since been deleted.
+  late String? _categoryId = widget.store.categoryById(widget.initial?.categoryId)?.id;
 
   bool get _isEditing => widget.initial != null;
 
@@ -82,6 +85,7 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
       amount: double.parse(_amountController.text),
       notes: _notesController.text.trim(),
       accountId: _account.id,
+      categoryId: _categoryId,
       dateTime: DateTime(_date.year, _date.month, _date.day, _time.hour, _time.minute),
     );
     if (_isEditing) {
@@ -119,90 +123,107 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
       ),
       body: Form(
         key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        child: Column(
           children: [
-            // Amount first and large: it's the one field every expense needs.
-            TextFormField(
-              controller: _amountController,
-              // Pop the keyboard up for new expenses only; editing often
-              // starts with just looking.
-              autofocus: !_isEditing,
-              style: amountStyle,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              textInputAction: TextInputAction.next,
-              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
-              decoration: InputDecoration(
-                labelText: 'Amount',
-                prefixText: '₹ ',
-                prefixStyle: amountStyle,
-                contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-              ),
-              validator: (value) {
-                final amount = double.tryParse(value ?? '');
-                if (amount == null || amount <= 0) return 'Enter a valid amount';
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _titleController,
-              textCapitalization: TextCapitalization.sentences,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'Title',
-                prefixIcon: Icon(Icons.edit_outlined),
-              ),
-              validator: (value) =>
-                  (value == null || value.trim().isEmpty) ? 'Enter a title' : null,
-            ),
-            const SizedBox(height: 12),
-            _PickerField(
-              label: 'Paid from',
-              value: _account.nickname,
-              leading: AccountIcon(_account.type, size: 28),
-              onTap: _pickAccount,
-              showChevron: true,
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _PickerField(
-                    label: 'Date',
-                    value: formatDate(_date),
-                    leading: const Icon(Icons.calendar_today_outlined),
-                    onTap: _pickDate,
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                children: [
+                  // Amount first and large: it's the one field every expense needs.
+                  TextFormField(
+                    controller: _amountController,
+                    // Pop the keyboard up for new expenses only; editing often
+                    // starts with just looking.
+                    autofocus: !_isEditing,
+                    style: amountStyle,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    textInputAction: TextInputAction.next,
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
+                    decoration: InputDecoration(
+                      labelText: 'Amount',
+                      prefixText: '₹ ',
+                      prefixStyle: amountStyle,
+                      contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                    ),
+                    validator: (value) {
+                      final amount = double.tryParse(value ?? '');
+                      if (amount == null || amount <= 0) return 'Enter a valid amount';
+                      return null;
+                    },
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _PickerField(
-                    label: 'Time',
-                    value: _time.format(context),
-                    leading: const Icon(Icons.schedule_outlined),
-                    onTap: _pickTime,
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _titleController,
+                    textCapitalization: TextCapitalization.sentences,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Title',
+                      prefixIcon: Icon(Icons.edit_outlined),
+                    ),
+                    validator: (value) =>
+                        (value == null || value.trim().isEmpty) ? 'Enter a title' : null,
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _notesController,
-              minLines: 3,
-              maxLines: 5,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'Notes (optional)',
-                alignLabelWithHint: true,
+                  const SizedBox(height: 16),
+                  CategoryPicker(
+                    store: widget.store,
+                    selectedId: _categoryId,
+                    onChanged: (id) => setState(() => _categoryId = id),
+                  ),
+                  const SizedBox(height: 16),
+                  _PickerField(
+                    label: 'Paid from',
+                    value: _account.nickname,
+                    leading: AccountIcon(_account.type, size: 28),
+                    onTap: _pickAccount,
+                    showChevron: true,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _PickerField(
+                          label: 'Date',
+                          value: formatDate(_date),
+                          leading: const Icon(Icons.calendar_today_outlined),
+                          onTap: _pickDate,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _PickerField(
+                          label: 'Time',
+                          value: _time.format(context),
+                          leading: const Icon(Icons.schedule_outlined),
+                          onTap: _pickTime,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _notesController,
+                    minLines: 3,
+                    maxLines: 5,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: const InputDecoration(
+                      labelText: 'Notes (optional)',
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: _submit,
-              icon: const Icon(Icons.check),
-              label: Text(_isEditing ? 'Save' : 'Add'),
-              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+            // Pinned below the fields so it's always in reach, and rides just
+            // above the keyboard while typing.
+            SafeArea(
+              top: false,
+              minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: FilledButton.icon(
+                onPressed: _submit,
+                icon: const Icon(Icons.check),
+                label: Text(_isEditing ? 'Save' : 'Add'),
+                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+              ),
             ),
           ],
         ),

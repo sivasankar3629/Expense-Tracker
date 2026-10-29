@@ -1,10 +1,12 @@
 import '../models/account.dart';
+import '../models/category.dart';
 import '../models/expense.dart';
 
 /// Everything the app saves, as read back on startup.
 class StoredData {
   const StoredData({
     this.accounts = const [],
+    this.categories = const [],
     this.expenses = const [],
     this.lastUsedAccountId,
     this.lastBackupAt,
@@ -12,6 +14,9 @@ class StoredData {
 
   /// User-added accounts in the order they were created; excludes built-in Cash.
   final List<Account> accounts;
+
+  /// In the order they were created.
+  final List<ExpenseCategory> categories;
   final List<Expense> expenses;
   final String? lastUsedAccountId;
 
@@ -27,6 +32,8 @@ abstract interface class ExpenseStorage {
   Future<void> deleteExpense(String id);
   Future<void> saveAccount(Account account);
   Future<void> deleteAccount(String id);
+  Future<void> saveCategory(ExpenseCategory category);
+  Future<void> deleteCategory(String id);
   Future<void> saveLastUsedAccountId(String id);
   Future<void> saveLastBackupAt(DateTime time);
 
@@ -50,6 +57,12 @@ class InMemoryStorage implements ExpenseStorage {
 
   @override
   Future<void> deleteAccount(String id) async {}
+
+  @override
+  Future<void> saveCategory(ExpenseCategory category) async {}
+
+  @override
+  Future<void> deleteCategory(String id) async {}
 
   @override
   Future<void> saveLastUsedAccountId(String id) async {}

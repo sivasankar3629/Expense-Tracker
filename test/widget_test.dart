@@ -31,7 +31,7 @@ void main() {
     expect(find.text('₹12'), findsNWidgets(3));
     expect(find.text('Today ₹12'), findsOneWidget);
     expect(find.text('${DateTime.now().day}'), findsOneWidget);
-    expect(find.text('Cash'), findsOneWidget);
+    expect(find.textContaining('Cash', findRichText: true), findsOneWidget);
   });
 
   testWidgets('empty title and amount are rejected', (tester) async {
@@ -62,7 +62,7 @@ void main() {
 
     await fillAndSubmit(tester, 'Dinner', '650');
 
-    expect(find.text('HDFC Millennia'), findsOneWidget);
+    expect(find.textContaining('HDFC Millennia', findRichText: true), findsOneWidget);
     final card = store.accountsOfType(AccountType.creditCard).single;
     expect(store.expenses.single.accountId, card.id);
     expect(store.lastUsedAccount.id, card.id);
@@ -137,6 +137,100 @@ void main() {
 
     expect(find.text('Backup & restore'), findsOneWidget);
     expect(find.text('Version 0.1.0 (build 7)'), findsOneWidget);
+  });
+
+  testWidgets('a category made from the add expense form is used for it', (tester) async {
+    final store = ExpenseStore();
+    await tester.pumpWidget(ExpenseTrackerApp(store: store));
+    await openAddExpense(tester);
+
+    // Nothing exists until the user makes it.
+    expect(store.categories, isEmpty);
+    await tester.tap(find.text('Create a category'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextFormField, 'Name'), 'Food');
+    await tester.tap(find.widgetWithText(FilledButton, 'Create'));
+    await tester.pumpAndSettle();
+
+    await fillAndSubmit(tester, 'Lunch', '200');
+
+    final food = store.categories.single;
+    expect(store.expenses.single.categoryId, food.id);
+    expect(find.textContaining('Food', findRichText: true), findsOneWidget);
+  });
+
+  testWidgets('tapping the selected category clears it', (tester) async {
+    final store = ExpenseStore()..addCategory(name: 'Food', iconKey: 'food', colorValue: 0xFFE53935);
+    await tester.pumpWidget(ExpenseTrackerApp(store: store));
+    await openAddExpense(tester);
+
+    await tester.tap(find.widgetWithText(FilterChip, 'Food'));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilterChip, 'Food'));
+    await tester.pump();
+    await fillAndSubmit(tester, 'Tea', '12');
+
+    expect(store.expenses.single.categoryId, isNull);
+  });
+
+  testWidgets('categories can be managed from the menu', (tester) async {
+    final store = ExpenseStore();
+    await tester.pumpWidget(ExpenseTrackerApp(store: store));
+    await tester.tap(find.byTooltip('More'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Categories'));
+    await tester.pumpAndSettle();
+    expect(find.text('No categories yet'), findsOneWidget);
+
+    await tester.tap(find.text('New category'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextFormField, 'Name'), 'Rent');
+    await tester.tap(find.widgetWithText(FilledButton, 'Create'));
+    await tester.pumpAndSettle();
+    expect(find.text('Rent'), findsOneWidget);
+
+    // Names must be unique, ignoring case.
+    await tester.tap(find.text('New category'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextFormField, 'Name'), 'rent');
+    await tester.tap(find.widgetWithText(FilledButton, 'Create'));
+    await tester.pumpAndSettle();
+    expect(find.text('You already have this category'), findsOneWidget);
+    expect(store.categories, hasLength(1));
+  });
+
+  test('deleting a category keeps its expenses, uncategorised', () {
+    final store = ExpenseStore();
+    final food = store.addCategory(name: 'Food', iconKey: 'food', colorValue: 0xFFE53935);
+    store.addExpense(Expense(
+      title: 'Lunch',
+      amount: 200,
+      dateTime: DateTime(2026, 10, 28),
+      accountId: Account.cash.id,
+      categoryId: food.id,
+    ));
+
+    store.deleteCategory(food);
+
+    expect(store.categories, isEmpty);
+    expect(store.expenses.single.title, 'Lunch');
+    expect(store.expenses.single.categoryId, isNull);
+  });
+
+  test('categories are offered most-used first', () {
+    final store = ExpenseStore();
+    final a = store.addCategory(name: 'Alpha', iconKey: 'tag', colorValue: 0xFFE53935);
+    final b = store.addCategory(name: 'Beta', iconKey: 'tag', colorValue: 0xFFE53935);
+    for (var i = 0; i < 2; i++) {
+      store.addExpense(Expense(
+        title: 'x',
+        amount: 1,
+        dateTime: DateTime(2026, 1, 1, i),
+        accountId: Account.cash.id,
+        categoryId: b.id,
+      ));
+    }
+    expect(store.categoriesByUse.map((c) => c.id), [b.id, a.id]);
   });
 
   test('accounts with expenses cannot be deleted', () {

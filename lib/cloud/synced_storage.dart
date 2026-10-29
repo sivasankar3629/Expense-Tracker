@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../data/expense_storage.dart';
 import '../models/account.dart';
+import '../models/category.dart';
 import '../models/expense.dart';
 import 'cloud_backup.dart';
 
@@ -70,6 +71,18 @@ class SyncedStorage implements ExpenseStorage {
   Future<void> deleteAccount(String id) async {
     await local.deleteAccount(id);
     _mirror((c) => c.deleteAccount(id));
+  }
+
+  @override
+  Future<void> saveCategory(ExpenseCategory category) async {
+    await local.saveCategory(category);
+    _mirror((c) => c.saveCategory(category));
+  }
+
+  @override
+  Future<void> deleteCategory(String id) async {
+    await local.deleteCategory(id);
+    _mirror((c) => c.deleteCategory(id));
   }
 
   @override

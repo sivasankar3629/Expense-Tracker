@@ -8,6 +8,7 @@ import 'package:expense_tracker/cloud/firestore_backup.dart';
 import 'package:expense_tracker/cloud/synced_storage.dart';
 import 'package:expense_tracker/data/expense_storage.dart';
 import 'package:expense_tracker/models/account.dart';
+import 'package:expense_tracker/models/category.dart';
 import 'package:expense_tracker/models/expense.dart';
 import 'package:expense_tracker/screens/backup_screen.dart';
 import 'package:expense_tracker/state/expense_store.dart';
@@ -17,10 +18,12 @@ import 'package:expense_tracker/theme.dart';
 class FakeCloud implements CloudBackup {
   FakeCloud([StoredData initial = const StoredData()])
       : accounts = {for (final a in initial.accounts) a.id: a},
+        categories = {for (final c in initial.categories) c.id: c},
         expenses = {for (final e in initial.expenses) e.id: e},
         lastUsedAccountId = initial.lastUsedAccountId;
 
   final Map<String, Account> accounts;
+  final Map<String, ExpenseCategory> categories;
   final Map<String, Expense> expenses;
   String? lastUsedAccountId;
   bool offline = false;
@@ -30,10 +33,17 @@ class FakeCloud implements CloudBackup {
     if (offline && fromServer) throw StateError('offline');
     return StoredData(
       accounts: accounts.values.toList(),
+      categories: categories.values.toList(),
       expenses: expenses.values.toList(),
       lastUsedAccountId: lastUsedAccountId,
     );
   }
+
+  @override
+  Future<void> saveCategory(ExpenseCategory category) async => categories[category.id] = category;
+
+  @override
+  Future<void> deleteCategory(String id) async => categories.remove(id);
 
   @override
   Future<void> saveExpense(Expense expense) async => expenses[expense.id] = expense;
@@ -55,6 +65,9 @@ class FakeCloud implements CloudBackup {
     accounts
       ..clear()
       ..addAll({for (final a in data.accounts) a.id: a});
+    categories
+      ..clear()
+      ..addAll({for (final c in data.categories) c.id: c});
     expenses
       ..clear()
       ..addAll({for (final e in data.expenses) e.id: e});
@@ -143,6 +156,25 @@ void main() {
       expect(merged.accounts.single.id, _sbi.id);
       expect(merged.expenses.single.accountId, _sbi.id);
       expect(merged.lastUsedAccountId, _sbi.id);
+    });
+
+    test('folds a same-named category and moves its expenses over', () {
+      const phoneFood = ExpenseCategory(id: '1', name: 'Food', iconKey: 'food', colorValue: 0xFFE53935);
+      const cloudFood = ExpenseCategory(id: '9', name: 'food', iconKey: 'tag', colorValue: 0xFF1E88E5);
+      const cloudRent = ExpenseCategory(id: '8', name: 'Rent', iconKey: 'home', colorValue: 0xFF43A047);
+      final merged = mergeForSignIn(
+        phone: const StoredData(categories: [phoneFood]),
+        cloud: StoredData(
+          categories: const [cloudFood, cloudRent],
+          expenses: [
+            _expense('a', 'Lunch').copyWith(categoryId: cloudFood.id),
+            _expense('b', 'Rent').copyWith(categoryId: cloudRent.id),
+          ],
+        ),
+      );
+
+      expect(merged.categories.map((c) => c.id), ['1', '8']);
+      expect({for (final e in merged.expenses) e.id: e.categoryId}, {'a': '1', 'b': '8'});
     });
 
     test('a new phone takes the cloud’s last used account', () {
@@ -376,6 +408,24 @@ void main() {
       expect(data.accounts.map((a) => a.id), [_hdfc.id]);
       expect(data.expenses.map((e) => e.id).toSet(), {'keep', 'new'});
       expect(data.lastUsedAccountId, _hdfc.id);
+    });
+
+    test('stores categories and an expense’s category', () async {
+      final firestore = FakeFirebaseFirestore();
+      final backup = FirestoreBackup(firestore, 'u1');
+      const food = ExpenseCategory(id: '5', name: 'Food', iconKey: 'food', colorValue: 0xFFE53935);
+      await backup.saveCategory(food);
+      await backup.saveExpense(_expense('1', 'Lunch').copyWith(categoryId: food.id));
+      await backup.saveExpense(_expense('2', 'Misc'));
+
+      final data = await backup.fetch();
+      expect(data.categories.single.name, 'Food');
+      expect(data.categories.single.iconKey, 'food');
+      expect(data.categories.single.colorValue, 0xFFE53935);
+      expect({for (final e in data.expenses) e.id: e.categoryId}, {'1': food.id, '2': null});
+
+      await backup.replaceAll(StoredData(expenses: [_expense('2', 'Misc')]));
+      expect((await backup.fetch()).categories, isEmpty);
     });
 
     test('keeps each user’s data separate', () async {

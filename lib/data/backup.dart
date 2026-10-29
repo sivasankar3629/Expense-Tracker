@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../models/account.dart';
+import '../models/category.dart';
 import '../models/expense.dart';
 import 'expense_storage.dart';
 
@@ -16,13 +17,13 @@ class BackupFormatException implements Exception {
 
 /// A snapshot of all app data, saved to and read from a JSON file.
 ///
-/// The format is versioned so future releases (e.g. with categories) can still
-/// read backups made today.
+/// The format is versioned so newer releases can still read older backups:
+/// version 1 had no categories, version 2 added them.
 class Backup {
   const Backup({required this.data, required this.exportedAt});
 
   static const _appId = 'expense_tracker';
-  static const currentVersion = 1;
+  static const currentVersion = 2;
 
   final StoredData data;
   final DateTime exportedAt;
@@ -43,6 +44,10 @@ class Backup {
           for (final a in data.accounts)
             {'id': a.id, 'nickname': a.nickname, 'type': a.type.name},
         ],
+        'categories': [
+          for (final c in data.categories)
+            {'id': c.id, 'name': c.name, 'icon': c.iconKey, 'color': c.colorValue},
+        ],
         'expenses': [
           for (final e in data.expenses)
             {
@@ -52,6 +57,7 @@ class Backup {
               'amountPaise': (e.amount * 100).round(),
               'dateTime': e.dateTime.toIso8601String(),
               'accountId': e.accountId,
+              'categoryId': e.categoryId,
               'notes': e.notes,
             },
         ],
@@ -88,6 +94,18 @@ class Backup {
       ];
       final knownAccountIds = {Account.cash.id, ...accounts.map((a) => a.id)};
 
+      // Absent in version 1 backups.
+      final categories = [
+        for (final raw in (json['categories'] as List<Object?>?) ?? const <Object?>[])
+          ExpenseCategory(
+            id: _string(raw, 'id'),
+            name: _string(raw, 'name'),
+            iconKey: _string(raw, 'icon'),
+            colorValue: _int(raw, 'color'),
+          ),
+      ];
+      final knownCategoryIds = {for (final c in categories) c.id};
+
       final expenses = [
         for (final raw in _list(json, 'expenses'))
           Expense(
@@ -100,7 +118,12 @@ class Backup {
             accountId: knownAccountIds.contains(_string(raw, 'accountId'))
                 ? _string(raw, 'accountId')
                 : Account.cash.id,
-            notes: (raw as Map)['notes'] as String? ?? '',
+            // A missing category just leaves the expense uncategorised.
+            categoryId: switch ((raw as Map)['categoryId']) {
+              final String id when knownCategoryIds.contains(id) => id,
+              _ => null,
+            },
+            notes: raw['notes'] as String? ?? '',
           ),
       ];
 
@@ -109,6 +132,7 @@ class Backup {
         exportedAt: DateTime.parse(_string(json, 'exportedAt')),
         data: StoredData(
           accounts: accounts,
+          categories: categories,
           expenses: expenses,
           lastUsedAccountId:
               lastUsed is String && knownAccountIds.contains(lastUsed) ? lastUsed : null,

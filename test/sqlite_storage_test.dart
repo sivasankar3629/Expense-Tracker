@@ -158,6 +158,63 @@ void main() {
     expect(store.lastBackupAt, DateTime(2026, 10, 28, 10, 32));
   });
 
+  test('categories and expense categories survive a relaunch', () async {
+    final storage = await openStorage();
+    var store = await ExpenseStore.open(storage);
+    final food = store.addCategory(name: 'Food', iconKey: 'food', colorValue: 0xFFE53935);
+    final rent = store.addCategory(name: 'Rent', iconKey: 'home', colorValue: 0xFF43A047);
+    store
+      ..addExpense(Expense(
+        title: 'Lunch',
+        amount: 200,
+        dateTime: DateTime(2026, 10, 28, 13),
+        accountId: Account.cash.id,
+        categoryId: food.id,
+      ))
+      ..updateCategory(rent.copyWith(name: 'House rent'));
+
+    store = await relaunch(storage, store);
+
+    expect(store.categories.map((c) => c.name), ['Food', 'House rent']);
+    expect(store.categories.first.iconKey, 'food');
+    expect(store.expenses.single.categoryId, food.id);
+  });
+
+  test('upgrades a database made before categories, keeping its data', () async {
+    // Build the original (version 1) database by hand, as an older app would have.
+    final old = await databaseFactoryFfi.openDatabase(
+      dbPath,
+      options: OpenDatabaseOptions(
+        version: 1,
+        onCreate: (db, _) async {
+          await db.execute('CREATE TABLE accounts (id TEXT PRIMARY KEY, nickname TEXT NOT NULL, type TEXT NOT NULL)');
+          await db.execute('CREATE TABLE expenses (id TEXT PRIMARY KEY, title TEXT NOT NULL, '
+              'amount_paise INTEGER NOT NULL, date_time INTEGER NOT NULL, '
+              "account_id TEXT NOT NULL, notes TEXT NOT NULL DEFAULT '')");
+          await db.execute('CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
+        },
+      ),
+    );
+    await old.insert('expenses', {
+      'id': 'old-1',
+      'title': 'Tea',
+      'amount_paise': 1200,
+      'date_time': DateTime(2026, 10, 1).millisecondsSinceEpoch,
+      'account_id': 'cash',
+    });
+    await old.close();
+
+    final storage = await openStorage();
+    final store = await ExpenseStore.open(storage);
+    expect(store.expenses.single.title, 'Tea');
+    expect(store.expenses.single.categoryId, isNull);
+
+    final food = store.addCategory(name: 'Food', iconKey: 'food', colorValue: 0xFFE53935);
+    store.updateExpense(store.expenses.single.copyWith(categoryId: food.id));
+    final reopened = await relaunch(storage, store);
+    expect(reopened.expenses.single.categoryId, food.id);
+  });
+
   test('amounts add up exactly after a relaunch', () async {
     final storage = await openStorage();
     var store = await ExpenseStore.open(storage);

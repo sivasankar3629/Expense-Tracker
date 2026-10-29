@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../cloud/cloud_sync.dart';
 import '../models/account.dart';
+import '../models/category.dart';
 import '../models/expense.dart';
 import '../state/expense_store.dart';
 import '../utils/format.dart';
 import 'accounts_screen.dart';
 import 'backup_screen.dart';
+import 'categories_screen.dart';
 import 'expense_form_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -63,6 +65,12 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
+  void _openCategories(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => CategoriesScreen(store: store)),
+    );
+  }
+
   void _openBackup(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => BackupScreen(store: store, cloudSync: cloudSync)),
@@ -94,6 +102,14 @@ class HomeScreen extends StatelessWidget {
             // `_` keeps the screen's context in scope; the menu's own context is
             // disposed once it closes, before onSelected runs.
             itemBuilder: (_) => [
+              PopupMenuItem(
+                value: () => _openCategories(context),
+                child: const ListTile(
+                  leading: Icon(Icons.category_outlined),
+                  title: Text('Categories'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
               PopupMenuItem(
                 value: () => _openBackup(context),
                 child: const ListTile(
@@ -301,6 +317,7 @@ class _MonthSection extends StatelessWidget {
                     child: _ExpenseTile(
                       expense: expenses[i],
                       account: store.accountById(expenses[i].accountId),
+                      category: store.categoryById(expenses[i].categoryId),
                     ),
                   ),
                 ),
@@ -366,10 +383,11 @@ class _DeleteBackground extends StatelessWidget {
 }
 
 class _ExpenseTile extends StatelessWidget {
-  const _ExpenseTile({required this.expense, this.account});
+  const _ExpenseTile({required this.expense, this.account, this.category});
 
   final Expense expense;
   final Account? account;
+  final ExpenseCategory? category;
 
   @override
   Widget build(BuildContext context) {
@@ -379,7 +397,7 @@ class _ExpenseTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          _DateBadge(date: expense.dateTime),
+          _DateBadge(date: expense.dateTime, color: category?.color),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -391,21 +409,32 @@ class _ExpenseTile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500),
                 ),
-                if (account != null) ...[
+                if (account != null || category != null) ...[
                   const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      Icon(account!.type.icon, size: 14, color: muted),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          account!.nickname,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(color: muted),
+                  Text.rich(
+                    TextSpan(children: [
+                      if (category case final c?) ...[
+                        WidgetSpan(
+                          alignment: PlaceholderAlignment.middle,
+                          child: Icon(c.icon, size: 14, color: c.color),
                         ),
-                      ),
-                    ],
+                        TextSpan(
+                          text: ' ${c.name}',
+                          style: TextStyle(color: c.color, fontWeight: FontWeight.w500),
+                        ),
+                        if (account != null) const TextSpan(text: '  ·  '),
+                      ],
+                      if (account case final a?) ...[
+                        WidgetSpan(
+                          alignment: PlaceholderAlignment.middle,
+                          child: Icon(a.type.icon, size: 14, color: muted),
+                        ),
+                        TextSpan(text: ' ${a.nickname}'),
+                      ],
+                    ]),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(color: muted),
                   ),
                 ],
               ],
@@ -423,19 +452,24 @@ class _ExpenseTile extends StatelessWidget {
 }
 
 class _DateBadge extends StatelessWidget {
-  const _DateBadge({required this.date});
+  const _DateBadge({required this.date, this.color});
 
   final DateTime date;
+
+  /// The expense's category colour, so rows are colour-coded at a glance.
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color = theme.colorScheme.onPrimaryContainer;
+    final tint = this.color;
+    final color = tint ?? theme.colorScheme.onPrimaryContainer;
     return Container(
       width: 44,
       padding: const EdgeInsets.symmetric(vertical: 6),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.7),
+        color: tint?.withValues(alpha: 0.16) ??
+            theme.colorScheme.primaryContainer.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(

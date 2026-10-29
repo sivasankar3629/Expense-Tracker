@@ -2,13 +2,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../data/expense_storage.dart';
 import '../models/account.dart';
+import '../models/category.dart';
 import '../models/expense.dart';
 import 'cloud_backup.dart';
 
 /// Keeps a user's data under `users/{uid}` in Firestore:
 ///
 /// - `accounts/{id}`: nickname, type
-/// - `expenses/{id}`: title, amountPaise, dateTime (ms since epoch), accountId, notes
+/// - `categories/{id}`: name, icon, color
+/// - `expenses/{id}`: title, amountPaise, dateTime (ms since epoch), accountId,
+///   categoryId (null if none), notes
 /// - `meta/settings`: lastUsedAccountId
 ///
 /// Firestore's offline cache queues writes made without internet and sends
@@ -22,6 +25,7 @@ class FirestoreBackup implements CloudBackup {
   final DocumentReference<Map<String, Object?>> _user;
 
   CollectionReference<Map<String, Object?>> get _accounts => _user.collection('accounts');
+  CollectionReference<Map<String, Object?>> get _categories => _user.collection('categories');
   CollectionReference<Map<String, Object?>> get _expenses => _user.collection('expenses');
   DocumentReference<Map<String, Object?>> get _settings => _user.collection('meta').doc('settings');
 
@@ -33,7 +37,14 @@ class FirestoreBackup implements CloudBackup {
         'amountPaise': (e.amount * 100).round(),
         'dateTime': e.dateTime.millisecondsSinceEpoch,
         'accountId': e.accountId,
+        'categoryId': e.categoryId,
         'notes': e.notes,
+      };
+
+  static Map<String, Object?> _categoryData(ExpenseCategory c) => {
+        'name': c.name,
+        'icon': c.iconKey,
+        'color': c.colorValue,
       };
 
   static Map<String, Object?> _accountData(Account a) => {
@@ -47,7 +58,15 @@ class FirestoreBackup implements CloudBackup {
         amount: (d['amountPaise'] as num).toInt() / 100,
         dateTime: DateTime.fromMillisecondsSinceEpoch((d['dateTime'] as num).toInt()),
         accountId: d['accountId'] as String,
+        categoryId: d['categoryId'] as String?,
         notes: d['notes'] as String? ?? '',
+      );
+
+  static ExpenseCategory _categoryFrom(String id, Map<String, Object?> d) => ExpenseCategory(
+        id: id,
+        name: d['name'] as String,
+        iconKey: d['icon'] as String,
+        colorValue: (d['color'] as num).toInt(),
       );
 
   static Account _accountFrom(String id, Map<String, Object?> d) => Account(
@@ -56,21 +75,28 @@ class FirestoreBackup implements CloudBackup {
         type: AccountType.values.byName(d['type'] as String),
       );
 
-  /// Account ids are creation timestamps, so sorting by them keeps the order
-  /// accounts were added in.
-  static int _byCreation(Account a, Account b) =>
-      (int.tryParse(a.id) ?? 0).compareTo(int.tryParse(b.id) ?? 0);
+  /// Ids are creation timestamps, so sorting by them keeps the order things
+  /// were added in.
+  static int _byCreation(String a, String b) =>
+      (int.tryParse(a) ?? 0).compareTo(int.tryParse(b) ?? 0);
 
   @override
   Future<StoredData> fetch({bool fromServer = false}) async {
     final options = GetOptions(source: fromServer ? Source.server : Source.serverAndCache);
-    final results = await Future.wait([_accounts.get(options), _expenses.get(options)]);
+    final results = await Future.wait([
+      _accounts.get(options),
+      _categories.get(options),
+      _expenses.get(options),
+    ]);
     final settings = await _settings.get(options);
     final accounts = [for (final doc in results[0].docs) _accountFrom(doc.id, doc.data())]
-      ..sort(_byCreation);
+      ..sort((a, b) => _byCreation(a.id, b.id));
+    final categories = [for (final doc in results[1].docs) _categoryFrom(doc.id, doc.data())]
+      ..sort((a, b) => _byCreation(a.id, b.id));
     return StoredData(
       accounts: accounts,
-      expenses: [for (final doc in results[1].docs) _expenseFrom(doc.id, doc.data())],
+      categories: categories,
+      expenses: [for (final doc in results[2].docs) _expenseFrom(doc.id, doc.data())],
       lastUsedAccountId: settings.data()?['lastUsedAccountId'] as String?,
     );
   }
@@ -90,6 +116,13 @@ class FirestoreBackup implements CloudBackup {
   Future<void> deleteAccount(String id) => _accounts.doc(id).delete();
 
   @override
+  Future<void> saveCategory(ExpenseCategory category) =>
+      _categories.doc(category.id).set(_categoryData(category));
+
+  @override
+  Future<void> deleteCategory(String id) => _categories.doc(id).delete();
+
+  @override
   Future<void> saveLastUsedAccountId(String id) =>
       _settings.set({'lastUsedAccountId': id});
 
@@ -107,6 +140,17 @@ class FirestoreBackup implements CloudBackup {
     }
     for (final id in currentAccounts.keys) {
       writes.add((b) => b.delete(_accounts.doc(id)));
+    }
+
+    final currentCategories = {for (final c in current.categories) c.id: _categoryData(c)};
+    for (final c in data.categories) {
+      final wanted = _categoryData(c);
+      if (!_sameData(currentCategories.remove(c.id), wanted)) {
+        writes.add((b) => b.set(_categories.doc(c.id), wanted));
+      }
+    }
+    for (final id in currentCategories.keys) {
+      writes.add((b) => b.delete(_categories.doc(id)));
     }
 
     final currentExpenses = {for (final e in current.expenses) e.id: _expenseData(e)};
