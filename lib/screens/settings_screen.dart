@@ -55,47 +55,11 @@ class SettingsScreen extends StatelessWidget {
                       onTap: () => _pickMonthStart(context),
                     ),
                     const Divider(indent: 72),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const _TileIcon(Icons.palette_outlined),
-                              // Lines up with the list tiles' titles.
-                              const SizedBox(width: 12),
-                              Text('Theme', style: theme.textTheme.titleMedium),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: SegmentedButton<ThemeChoice>(
-                              showSelectedIcon: false,
-                              segments: const [
-                                ButtonSegment(
-                                  value: ThemeChoice.system,
-                                  icon: Icon(Icons.brightness_auto_outlined),
-                                  label: Text('System'),
-                                ),
-                                ButtonSegment(
-                                  value: ThemeChoice.light,
-                                  icon: Icon(Icons.light_mode_outlined),
-                                  label: Text('Light'),
-                                ),
-                                ButtonSegment(
-                                  value: ThemeChoice.dark,
-                                  icon: Icon(Icons.dark_mode_outlined),
-                                  label: Text('Dark'),
-                                ),
-                              ],
-                              selected: {store.themeChoice},
-                              onSelectionChanged: (picked) => store.setThemeChoice(picked.single),
-                            ),
-                          ),
-                        ],
-                      ),
+                    _SettingTile(
+                      icon: Icons.palette_outlined,
+                      title: 'Theme',
+                      subtitle: _themeLabel(store.themeChoice),
+                      onTap: () => _pickTheme(context),
                     ),
                   ],
                 ),
@@ -148,6 +112,47 @@ class SettingsScreen extends StatelessWidget {
         },
       ),
     );
+  }
+
+  static String _themeLabel(ThemeChoice choice) => switch (choice) {
+        ThemeChoice.system => 'System default',
+        ThemeChoice.light => 'Light',
+        ThemeChoice.dark => 'Dark',
+      };
+
+  Future<void> _pickTheme(BuildContext context) async {
+    final picked = await showModalBottomSheet<ThemeChoice>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) => _SheetFrame(
+        title: 'Theme',
+        message: 'How Kipto looks on this phone.',
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final (choice, icon, detail) in [
+                (ThemeChoice.system, Icons.brightness_auto_outlined, 'Follows your phone’s setting'),
+                (ThemeChoice.light, Icons.light_mode_outlined, 'Always light'),
+                (ThemeChoice.dark, Icons.dark_mode_outlined, 'Always dark'),
+              ])
+                ListTile(
+                  leading: _TileIcon(icon),
+                  title: Text(_themeLabel(choice)),
+                  subtitle: Text(detail),
+                  trailing: choice == store.themeChoice
+                      ? Icon(Icons.check, color: Theme.of(sheetContext).colorScheme.primary)
+                      : null,
+                  onTap: () => Navigator.of(sheetContext).pop(choice),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (picked != null) store.setThemeChoice(picked);
   }
 
   Future<void> _pickCurrency(BuildContext context) async {

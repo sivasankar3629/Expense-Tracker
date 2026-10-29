@@ -109,8 +109,12 @@ void main() {
     expect(mode(), ThemeMode.system);
 
     await _openSettings(tester);
+    expect(find.text('System default'), findsOneWidget);
+    await tester.tap(find.text('Theme'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Dark'));
     await tester.pumpAndSettle();
+    expect(find.text('Dark'), findsOneWidget);
     expect(store.themeChoice, ThemeChoice.dark);
     expect(mode(), ThemeMode.dark);
     expect(Theme.of(tester.element(find.text('Settings').first)).brightness, Brightness.dark);
