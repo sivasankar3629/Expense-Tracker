@@ -32,4 +32,14 @@ void main() {
       '1st', '2nd', '3rd', '4th', '11th', '12th', '13th', '21st', '22nd', '23rd', '25th', '28th',
     ]);
   });
+
+  test('day labels stay short', () {
+    final now = DateTime(2026, 10, 29, 9, 30);
+    expect(formatDayLabel(DateTime(2026, 10, 29, 23, 59), now: now), 'Today');
+    expect(formatDayLabel(DateTime(2026, 10, 28, 8), now: now), 'Yesterday');
+    expect(formatDayLabel(DateTime(2026, 10, 2), now: now), '2 Oct');
+    expect(formatDayLabel(DateTime(2025, 12, 31), now: now), '31 Dec 2025');
+    // Yesterday across a month and a year boundary.
+    expect(formatDayLabel(DateTime(2026, 12, 31), now: DateTime(2027, 1, 1)), 'Yesterday');
+  });
 }

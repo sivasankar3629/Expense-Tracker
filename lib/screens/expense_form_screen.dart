@@ -219,7 +219,7 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                             Expanded(
                               child: _PickerField(
                                 label: 'Date',
-                                value: formatDate(_date),
+                                value: formatDayLabel(_date),
                                 leading: const Icon(Icons.calendar_today_outlined),
                                 onTap: _pickDate,
                               ),
@@ -299,7 +299,12 @@ class _PickerField extends StatelessWidget {
           ),
           prefixIconConstraints: const BoxConstraints(minWidth: 48, minHeight: 48),
         ),
-        child: Text(value, maxLines: 1, overflow: TextOverflow.ellipsis),
+        // Shrinks a little rather than cutting off on narrow phones.
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: AlignmentDirectional.centerStart,
+          child: Text(value, maxLines: 1),
+        ),
       ),
     );
   }
