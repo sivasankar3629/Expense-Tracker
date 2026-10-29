@@ -5,6 +5,8 @@ import 'package:expense_tracker/main.dart';
 import 'package:expense_tracker/models/account.dart';
 import 'package:expense_tracker/models/expense.dart';
 import 'package:expense_tracker/state/expense_store.dart';
+import 'package:expense_tracker/widgets/category_card.dart';
+import 'package:expense_tracker/widgets/expense_list.dart';
 
 void main() {
   Future<void> openAddExpense(WidgetTester tester) async {
@@ -19,26 +21,27 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  /// Recent expenses sit below the summary and categories, so scroll the
-  /// row into view before touching it.
-  Future<Finder> scrollTo(WidgetTester tester, String title) async {
-    final row = find.text(title);
-    await tester.ensureVisible(row);
+  /// Recent expenses sit below the summary and categories, out of view (and
+  /// not yet built) on the test screen, so scroll home down (or, with a
+  /// negative [step], back up) to [finder].
+  Future<Finder> scrollTo(WidgetTester tester, Finder finder, {double step = 200}) async {
+    await tester.scrollUntilVisible(finder, step, scrollable: find.byType(Scrollable).first);
     await tester.pumpAndSettle();
-    return row;
+    return finder;
   }
 
   testWidgets('adding an expense shows it on the home list', (tester) async {
     await tester.pumpWidget(ExpenseTrackerApp(store: ExpenseStore()));
-    expect(find.text('No expenses yet'), findsOneWidget);
+    expect(await scrollTo(tester, find.text('No expenses yet')), findsOneWidget);
 
     await openAddExpense(tester);
     await fillAndSubmit(tester, 'Tea', '12');
 
-    expect(find.text('Tea'), findsOneWidget);
-    // On the row, the month header and the summary card.
-    expect(find.text('₹12'), findsNWidgets(3));
-    expect(find.text('Today ₹12'), findsOneWidget);
+    // The summary card at the top...
+    expect(await scrollTo(tester, find.text('Today ₹12'), step: -200), findsOneWidget);
+    // ...and the row, with its month header.
+    expect(await scrollTo(tester, find.text('Tea')), findsOneWidget);
+    expect(find.descendant(of: find.byType(ExpenseTile), matching: find.text('₹12')), findsOneWidget);
     expect(find.text('${DateTime.now().day}'), findsOneWidget);
     expect(find.textContaining('Cash', findRichText: true), findsOneWidget);
   });
@@ -71,7 +74,10 @@ void main() {
 
     await fillAndSubmit(tester, 'Dinner', '650');
 
-    expect(find.textContaining('HDFC Millennia', findRichText: true), findsOneWidget);
+    expect(
+      await scrollTo(tester, find.textContaining('HDFC Millennia', findRichText: true)),
+      findsOneWidget,
+    );
     final card = store.accountsOfType(AccountType.creditCard).single;
     expect(store.expenses.single.accountId, card.id);
     expect(store.lastUsedAccount.id, card.id);
@@ -84,7 +90,7 @@ void main() {
     await fillAndSubmit(tester, 'Tea', '12');
     final originalId = store.expenses.single.id;
 
-    await tester.tap(await scrollTo(tester, 'Tea'));
+    await tester.tap(await scrollTo(tester, find.text('Tea')));
     await tester.pumpAndSettle();
     expect(find.text('Edit expense'), findsOneWidget);
     expect(find.widgetWithText(TextFormField, '12'), findsOneWidget);
@@ -106,7 +112,7 @@ void main() {
     await openAddExpense(tester);
     await fillAndSubmit(tester, 'Tea', '12');
 
-    await tester.drag(await scrollTo(tester, 'Tea'), const Offset(-600, 0));
+    await tester.drag(await scrollTo(tester, find.text('Tea')), const Offset(-600, 0));
     await tester.pumpAndSettle();
 
     expect(store.expenses, isEmpty);
@@ -126,7 +132,7 @@ void main() {
     await openAddExpense(tester);
     await fillAndSubmit(tester, 'Tea', '12');
 
-    await tester.tap(await scrollTo(tester, 'Tea'));
+    await tester.tap(await scrollTo(tester, find.text('Tea')));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Delete'));
     await tester.pumpAndSettle();
@@ -167,7 +173,15 @@ void main() {
     final food = store.categories.single;
     expect(store.expenses.single.categoryId, food.id);
     // On its card in the category grid, and on the expense's row.
-    expect(find.textContaining('Food', findRichText: true), findsNWidgets(2));
+    expect(find.widgetWithText(CategoryCard, 'Food'), findsOneWidget);
+    await scrollTo(tester, find.text('Lunch'));
+    expect(
+      find.descendant(
+        of: find.byType(ExpenseTile),
+        matching: find.textContaining('Food', findRichText: true),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('tapping the selected category clears it', (tester) async {
