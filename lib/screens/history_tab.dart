@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../models/account.dart';
+import '../models/expense.dart';
 import '../state/expense_store.dart';
 import '../utils/format.dart';
 import '../widgets/category_icon.dart';
 import '../widgets/expense_list.dart';
 
-/// Every expense, newest first, filterable by category and payment method.
+/// Every expense, newest first, searchable and filterable by category and
+/// payment method.
 class HistoryTab extends StatefulWidget {
   const HistoryTab({super.key, required this.store});
 
@@ -22,10 +24,46 @@ const _uncategorised = '';
 class _HistoryTabState extends State<HistoryTab> {
   Set<String> _categoryIds = {};
   Set<String> _accountIds = {};
+  final _search = TextEditingController();
+  List<String> _terms = [];
 
   ExpenseStore get _store => widget.store;
 
   bool get _filtering => _categoryIds.isNotEmpty || _accountIds.isNotEmpty;
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String text) {
+    setState(() => _terms = text.toLowerCase().split(RegExp(r'\s+'))..removeWhere((t) => t.isEmpty));
+  }
+
+  void _clearSearch() {
+    _search.clear();
+    _onSearchChanged('');
+  }
+
+  /// Every search word has to appear in the title, notes, category or
+  /// payment method, or be the start of the amount ("65" finds ₹650).
+  bool _matchesSearch(Expense e) {
+    if (_terms.isEmpty) return true;
+    final account = e.accountId == Account.cash.id ? Account.cash : _store.accountById(e.accountId);
+    final text = [
+      e.title,
+      e.notes,
+      _store.categoryById(e.categoryId)?.name ?? 'Uncategorised',
+      account?.nickname ?? '',
+    ].join('\n').toLowerCase();
+    final amount = e.amount == e.amount.truncateToDouble() ? '${e.amount.toInt()}' : '${e.amount}';
+    return _terms.every((term) {
+      if (text.contains(term)) return true;
+      final digits = term.replaceAll(RegExp('[₹,]'), '');
+      return digits.isNotEmpty && double.tryParse(digits) != null && amount.startsWith(digits);
+    });
+  }
 
   Future<void> _pickCategories() async {
     final options = [
@@ -133,13 +171,42 @@ class _HistoryTabState extends State<HistoryTab> {
         final shown = [
           for (final e in all)
             if ((_categoryIds.isEmpty || _categoryIds.contains(e.categoryId ?? _uncategorised)) &&
-                (_accountIds.isEmpty || _accountIds.contains(e.accountId)))
+                (_accountIds.isEmpty || _accountIds.contains(e.accountId)) &&
+                _matchesSearch(e))
               e,
         ];
         final theme = Theme.of(context);
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           children: [
+            if (all.isNotEmpty) ...[
+              TextField(
+                controller: _search,
+                onChanged: _onSearchChanged,
+                textInputAction: TextInputAction.search,
+                onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                decoration: InputDecoration(
+                  hintText: 'Search title, notes, amount…',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _search.text.isEmpty
+                      ? null
+                      : IconButton(
+                          icon: const Icon(Icons.close),
+                          tooltip: 'Clear search',
+                          onPressed: _clearSearch,
+                        ),
+                  filled: true,
+                  fillColor: theme.colorScheme.surfaceContainerHigh,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(28),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -165,7 +232,7 @@ class _HistoryTabState extends State<HistoryTab> {
                   ),
               ],
             ),
-            if (all.isNotEmpty)
+            if (shown.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.fromLTRB(4, 14, 4, 0),
                 child: Text(
@@ -183,10 +250,14 @@ class _HistoryTabState extends State<HistoryTab> {
                 message: 'Everything you add shows up here.',
               )
             else if (shown.isEmpty)
-              const EmptyMessage(
-                icon: Icons.filter_alt_off_outlined,
+              EmptyMessage(
+                icon: _terms.isEmpty ? Icons.filter_alt_off_outlined : Icons.search_off,
                 title: 'No matches',
-                message: 'No expenses match these filters.',
+                message: switch ((_terms.isNotEmpty, _filtering)) {
+                  (true, true) => 'No expenses match your search and filters.',
+                  (true, false) => 'No expenses match your search.',
+                  _ => 'No expenses match these filters.',
+                },
               )
             else
               ...expenseMonthSections(context, _store, shown),

@@ -204,6 +204,59 @@ void main() {
       expect(find.text('3 expenses · ₹1,150'), findsOneWidget);
     });
 
+    testWidgets('searches title, notes, category, payment method and amount', (tester) async {
+      final store = ExpenseStore();
+      final food = store.addCategory(name: 'Food', iconKey: 'food', colorValue: 0xFFE53935);
+      final card = store.addAccount('HDFC Millennia', AccountType.creditCard);
+      store
+        ..addExpense(_expense('Lunch', 200, categoryId: food.id))
+        ..addExpense(_expense('Dinner', 650, categoryId: food.id, accountId: card.id))
+        ..addExpense(Expense(
+          title: 'Taxi',
+          amount: 300,
+          dateTime: DateTime.now(),
+          accountId: 'cash',
+          notes: 'Airport drop',
+        ));
+      await tester.pumpWidget(ExpenseTrackerApp(store: store));
+      await tester.tap(find.text('History').last);
+      await tester.pumpAndSettle();
+
+      Future<void> search(String text) async {
+        await tester.enterText(find.byType(TextField), text);
+        await tester.pumpAndSettle();
+      }
+
+      await search('lun');
+      expect(find.text('1 expense · ₹200'), findsOneWidget);
+      await search('airport');
+      expect(find.text('Taxi'), findsOneWidget);
+      await search('food');
+      expect(find.text('2 expenses · ₹850'), findsOneWidget);
+      await search('hdfc');
+      expect(find.text('1 expense · ₹650'), findsOneWidget);
+      await search('65');
+      expect(find.text('Dinner'), findsOneWidget);
+      // Every word has to match.
+      await search('food cash');
+      expect(find.text('1 expense · ₹200'), findsOneWidget);
+      await search('dinner cash');
+      expect(find.text('No matches'), findsOneWidget);
+
+      // Search and filters narrow each other down.
+      await search('food');
+      await tester.tap(find.text('Paid from'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(CheckboxListTile, 'Cash'));
+      await tester.tap(find.text('Show results'));
+      await tester.pumpAndSettle();
+      expect(find.text('1 expense · ₹200'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Clear search'));
+      await tester.pumpAndSettle();
+      expect(find.text('2 expenses · ₹500'), findsOneWidget);
+    });
+
     testWidgets('can show only uncategorised expenses', (tester) async {
       final store = ExpenseStore();
       final food = store.addCategory(name: 'Food', iconKey: 'food', colorValue: 0xFFE53935);
