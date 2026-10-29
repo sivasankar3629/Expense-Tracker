@@ -1,6 +1,7 @@
 import '../models/account.dart';
 import '../models/category.dart';
 import '../models/expense.dart';
+import '../models/preferences.dart';
 
 /// Everything the app saves, as read back on startup.
 class StoredData {
@@ -9,7 +10,9 @@ class StoredData {
     this.categories = const [],
     this.expenses = const [],
     this.lastUsedAccountId,
+    this.preferences,
     this.lastBackupAt,
+    this.themeChoice = ThemeChoice.system,
   });
 
   /// User-added accounts in the order they were created; excludes built-in Cash.
@@ -20,8 +23,15 @@ class StoredData {
   final List<Expense> expenses;
   final String? lastUsedAccountId;
 
+  /// Null when unknown, e.g. in a backup made before preferences existed;
+  /// restoring such a backup keeps the current ones.
+  final Preferences? preferences;
+
   /// When this device last made a backup; not part of the backup itself.
   final DateTime? lastBackupAt;
+
+  /// This phone's theme; not part of backups either.
+  final ThemeChoice themeChoice;
 }
 
 /// Where expenses and accounts are saved between app launches.
@@ -36,6 +46,8 @@ abstract interface class ExpenseStorage {
   Future<void> deleteCategory(String id);
   Future<void> saveLastUsedAccountId(String id);
   Future<void> saveLastBackupAt(DateTime time);
+  Future<void> savePreferences(Preferences preferences);
+  Future<void> saveThemeChoice(ThemeChoice choice);
 
   /// Swaps all accounts and expenses for [data] in one step (for restore).
   Future<void> replaceAll(StoredData data);
@@ -69,6 +81,12 @@ class InMemoryStorage implements ExpenseStorage {
 
   @override
   Future<void> saveLastBackupAt(DateTime time) async {}
+
+  @override
+  Future<void> savePreferences(Preferences preferences) async {}
+
+  @override
+  Future<void> saveThemeChoice(ThemeChoice choice) async {}
 
   @override
   Future<void> replaceAll(StoredData data) async {}

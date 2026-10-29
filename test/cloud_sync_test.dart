@@ -11,6 +11,7 @@ import 'package:expense_tracker/models/account.dart';
 import 'package:expense_tracker/models/category.dart';
 import 'package:expense_tracker/models/expense.dart';
 import 'package:expense_tracker/screens/backup_screen.dart';
+import 'package:expense_tracker/models/preferences.dart';
 import 'package:expense_tracker/state/expense_store.dart';
 import 'package:expense_tracker/theme.dart';
 
@@ -20,12 +21,14 @@ class FakeCloud implements CloudBackup {
       : accounts = {for (final a in initial.accounts) a.id: a},
         categories = {for (final c in initial.categories) c.id: c},
         expenses = {for (final e in initial.expenses) e.id: e},
-        lastUsedAccountId = initial.lastUsedAccountId;
+        lastUsedAccountId = initial.lastUsedAccountId,
+        preferences = initial.preferences;
 
   final Map<String, Account> accounts;
   final Map<String, ExpenseCategory> categories;
   final Map<String, Expense> expenses;
   String? lastUsedAccountId;
+  Preferences? preferences;
   bool offline = false;
 
   @override
@@ -36,6 +39,7 @@ class FakeCloud implements CloudBackup {
       categories: categories.values.toList(),
       expenses: expenses.values.toList(),
       lastUsedAccountId: lastUsedAccountId,
+      preferences: preferences,
     );
   }
 
@@ -61,6 +65,9 @@ class FakeCloud implements CloudBackup {
   Future<void> saveLastUsedAccountId(String id) async => lastUsedAccountId = id;
 
   @override
+  Future<void> savePreferences(Preferences preferences) async => this.preferences = preferences;
+
+  @override
   Future<void> replaceAll(StoredData data) async {
     accounts
       ..clear()
@@ -72,6 +79,7 @@ class FakeCloud implements CloudBackup {
       ..clear()
       ..addAll({for (final e in data.expenses) e.id: e});
     lastUsedAccountId = data.lastUsedAccountId;
+    preferences = data.preferences ?? preferences;
   }
 }
 

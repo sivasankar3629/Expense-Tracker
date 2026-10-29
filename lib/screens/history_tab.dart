@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import '../models/account.dart';
 import '../models/expense.dart';
 import '../state/expense_store.dart';
-import '../utils/format.dart';
 import '../widgets/category_icon.dart';
 import '../widgets/expense_list.dart';
+import '../widgets/currency_scope.dart';
 
 /// Every expense, newest first, searchable and filterable by category and
 /// payment method.
@@ -60,7 +60,8 @@ class _HistoryTabState extends State<HistoryTab> {
     final amount = e.amount == e.amount.truncateToDouble() ? '${e.amount.toInt()}' : '${e.amount}';
     return _terms.every((term) {
       if (text.contains(term)) return true;
-      final digits = term.replaceAll(RegExp('[₹,]'), '');
+      final symbol = CurrencyScope.of(context).symbol.toLowerCase();
+      final digits = term.replaceAll(symbol, '').replaceAll(',', '');
       return digits.isNotEmpty && double.tryParse(digits) != null && amount.startsWith(digits);
     });
   }
@@ -237,7 +238,7 @@ class _HistoryTabState extends State<HistoryTab> {
                 padding: const EdgeInsets.fromLTRB(4, 14, 4, 0),
                 child: Text(
                   '${shown.length == 1 ? '1 expense' : '${shown.length} expenses'}'
-                  ' · ${formatAmount(totalOf(shown))}',
+                  ' · ${context.formatAmount(totalOf(shown))}',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),

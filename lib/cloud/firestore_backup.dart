@@ -4,6 +4,7 @@ import '../data/expense_storage.dart';
 import '../models/account.dart';
 import '../models/category.dart';
 import '../models/expense.dart';
+import '../models/preferences.dart';
 import 'cloud_backup.dart';
 
 /// Keeps a user's data under `users/{uid}` in Firestore:
@@ -12,7 +13,7 @@ import 'cloud_backup.dart';
 /// - `categories/{id}`: name, icon, color, budgetPaise (null if none)
 /// - `expenses/{id}`: title, amountPaise, dateTime (ms since epoch), accountId,
 ///   categoryId (null if none), notes
-/// - `meta/settings`: lastUsedAccountId
+/// - `meta/settings`: lastUsedAccountId, currency, monthStartDay
 ///
 /// Firestore's offline cache queues writes made without internet and sends
 /// them when the phone is back online, even after the app restarts.
@@ -98,11 +99,16 @@ class FirestoreBackup implements CloudBackup {
       ..sort((a, b) => _byCreation(a.id, b.id));
     final categories = [for (final doc in results[1].docs) _categoryFrom(doc.id, doc.data())]
       ..sort((a, b) => _byCreation(a.id, b.id));
+    final settingsData = settings.data();
     return StoredData(
       accounts: accounts,
       categories: categories,
       expenses: [for (final doc in results[2].docs) _expenseFrom(doc.id, doc.data())],
-      lastUsedAccountId: settings.data()?['lastUsedAccountId'] as String?,
+      lastUsedAccountId: settingsData?['lastUsedAccountId'] as String?,
+      // Absent until a phone with preferences has synced.
+      preferences: settingsData != null && settingsData.containsKey('currency')
+          ? Preferences.fromJson(settingsData)
+          : null,
     );
   }
 
@@ -129,7 +135,14 @@ class FirestoreBackup implements CloudBackup {
 
   @override
   Future<void> saveLastUsedAccountId(String id) =>
-      _settings.set({'lastUsedAccountId': id});
+      _settings.set({'lastUsedAccountId': id}, _merge);
+
+  @override
+  Future<void> savePreferences(Preferences preferences) =>
+      _settings.set(preferences.toJson(), _merge);
+
+  /// Settings fields are written separately, so none may wipe the others.
+  static final _merge = SetOptions(merge: true);
 
   @override
   Future<void> replaceAll(StoredData data) async {
@@ -171,7 +184,11 @@ class FirestoreBackup implements CloudBackup {
 
     final lastUsed = data.lastUsedAccountId;
     if (lastUsed != null && lastUsed != current.lastUsedAccountId) {
-      writes.add((b) => b.set(_settings, {'lastUsedAccountId': lastUsed}));
+      writes.add((b) => b.set(_settings, {'lastUsedAccountId': lastUsed}, _merge));
+    }
+    final preferences = data.preferences;
+    if (preferences != null && preferences != current.preferences) {
+      writes.add((b) => b.set(_settings, preferences.toJson(), _merge));
     }
 
     for (var i = 0; i < writes.length; i += _batchLimit) {

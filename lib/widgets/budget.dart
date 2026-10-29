@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../models/category.dart';
 import '../state/expense_store.dart';
 import '../utils/format.dart';
+import 'currency_scope.dart';
 
 /// How close spending is to a budget.
 enum BudgetLevel {
@@ -57,11 +58,11 @@ class BudgetProgress extends StatelessWidget {
     final caption = switch (level) {
       _ when left == 0 => 'Budget used up',
       BudgetLevel.over => compact
-          ? '${formatAmount(-left)} over'
-          : '${formatAmount(-left)} over your ${formatAmount(budget)} budget',
+          ? '${context.formatAmount(-left)} over'
+          : '${context.formatAmount(-left)} over your ${context.formatAmount(budget)} budget',
       _ => compact
-          ? '${formatAmount(left)} left'
-          : '${formatAmount(left)} left of ${formatAmount(budget)}',
+          ? '${context.formatAmount(left)} left'
+          : '${context.formatAmount(left)} left of ${context.formatAmount(budget)}',
     };
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,10 +160,13 @@ class _BudgetDialogState extends State<_BudgetDialog> {
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
           onFieldSubmitted: (_) => _save(),
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: 'Budget',
-            prefixText: '₹ ',
-            helperText: 'Starts fresh at the beginning of each month.',
+            prefixText: context.currencyPrefix,
+            helperText: switch (widget.store.preferences.monthStartDay) {
+              1 => 'Starts fresh at the beginning of each month.',
+              final day => 'Starts fresh on the ${formatOrdinal(day)} of each month.',
+            },
           ),
           validator: (value) {
             final amount = double.tryParse(value ?? '');

@@ -2,6 +2,7 @@ import '../data/expense_storage.dart';
 import '../models/account.dart';
 import '../models/category.dart';
 import '../models/expense.dart';
+import '../models/preferences.dart';
 
 /// A signed-in user's copy of the data in the cloud.
 abstract interface class CloudBackup {
@@ -18,6 +19,7 @@ abstract interface class CloudBackup {
   Future<void> saveCategory(ExpenseCategory category);
   Future<void> deleteCategory(String id);
   Future<void> saveLastUsedAccountId(String id);
+  Future<void> savePreferences(Preferences preferences);
 
   /// Makes the cloud match [data] exactly, writing only what differs.
   Future<void> replaceAll(StoredData data);
@@ -63,11 +65,15 @@ StoredData mergeForSignIn({required StoredData phone, required StoredData cloud}
   final lastUsed = phone.expenses.isEmpty
       ? cloud.lastUsedAccountId ?? phone.lastUsedAccountId
       : phone.lastUsedAccountId ?? cloud.lastUsedAccountId;
+  final preferences = phone.expenses.isEmpty
+      ? cloud.preferences ?? phone.preferences
+      : phone.preferences ?? cloud.preferences;
   return StoredData(
     accounts: accounts,
     categories: categories,
     expenses: expenses.values.toList(),
     lastUsedAccountId: lastUsed == null ? null : accountRemap[lastUsed] ?? lastUsed,
+    preferences: preferences,
   );
 }
 

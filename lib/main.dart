@@ -11,9 +11,11 @@ import 'cloud/synced_storage.dart';
 import 'data/expense_storage.dart';
 import 'data/sqlite_storage.dart';
 import 'firebase_config.dart';
+import 'models/preferences.dart';
 import 'screens/app_shell.dart';
 import 'state/expense_store.dart';
 import 'theme.dart';
+import 'widgets/currency_scope.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -59,17 +61,27 @@ class ExpenseTrackerApp extends StatelessWidget {
   final ExpenseStore store;
   final CloudSync? cloudSync;
 
-  /// e.g. "Version 0.1.0 (build 7)"; shown in the home screen's menu.
+  /// e.g. "Version 0.1.0 (build 7)"; shown in Settings.
   final String? versionLabel;
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Kipto',
-      debugShowCheckedModeBanner: false,
-      theme: buildTheme(Brightness.light),
-      darkTheme: buildTheme(Brightness.dark),
-      home: AppShell(store: store, cloudSync: cloudSync, versionLabel: versionLabel),
+    return ListenableBuilder(
+      listenable: store,
+      builder: (context, _) => MaterialApp(
+        title: 'Kipto',
+        debugShowCheckedModeBanner: false,
+        theme: buildTheme(Brightness.light),
+        darkTheme: buildTheme(Brightness.dark),
+        themeMode: switch (store.themeChoice) {
+          ThemeChoice.system => ThemeMode.system,
+          ThemeChoice.light => ThemeMode.light,
+          ThemeChoice.dark => ThemeMode.dark,
+        },
+        // Above the navigator, so every screen and dialog sees the currency.
+        builder: (context, child) => CurrencyScope(currency: store.currency, child: child!),
+        home: AppShell(store: store, cloudSync: cloudSync, versionLabel: versionLabel),
+      ),
     );
   }
 }

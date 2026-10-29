@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../models/category.dart';
 import '../state/expense_store.dart';
-import '../utils/format.dart';
 import '../widgets/budget.dart';
 import '../widgets/category_dialog.dart';
 import '../widgets/category_icon.dart';
 import '../widgets/expense_list.dart';
+import '../widgets/currency_scope.dart';
 
 /// One category's expenses and budget; null [categoryId] shows the
 /// uncategorised expenses.
@@ -31,9 +31,10 @@ class CategoryScreen extends StatelessWidget {
         }
         final expenses = store.expensesInCategory(categoryId);
         final now = DateTime.now();
-        final thisMonth = expenses
-            .where((e) => e.dateTime.year == now.year && e.dateTime.month == now.month)
-            .toList();
+        final thisMonth = [
+          for (final e in store.expensesInBudgetMonth(now))
+            if (e.categoryId == categoryId) e,
+        ];
         return Scaffold(
           appBar: AppBar(
             title: Text(category?.name ?? 'Uncategorised'),
@@ -53,7 +54,7 @@ class CategoryScreen extends StatelessWidget {
               _Header(
                 store: store,
                 category: category,
-                month: formatMonthName(now),
+                period: store.budgetMonthLabel(now),
                 spent: totalOf(thisMonth),
                 count: thisMonth.length,
               ),
@@ -84,14 +85,14 @@ class _Header extends StatelessWidget {
   const _Header({
     required this.store,
     required this.category,
-    required this.month,
+    required this.period,
     required this.spent,
     required this.count,
   });
 
   final ExpenseStore store;
   final ExpenseCategory? category;
-  final String month;
+  final String period;
   final double spent;
   final int count;
 
@@ -121,11 +122,11 @@ class _Header extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Spent in $month',
+                        'Spent $period',
                         style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
                       ),
                       Text(
-                        formatAmount(spent),
+                        context.formatAmount(spent),
                         style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
                       ),
                     ],

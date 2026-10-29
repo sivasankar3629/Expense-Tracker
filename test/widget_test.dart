@@ -124,17 +124,18 @@ void main() {
     expect(find.text('Deleted "Tea"'), findsOneWidget);
   });
 
-  testWidgets('the menu shows which build is installed', (tester) async {
+  testWidgets('settings show which build is installed', (tester) async {
     await tester.pumpWidget(ExpenseTrackerApp(
       store: ExpenseStore(),
       versionLabel: 'Version 0.1.0 (build 7)',
     ));
 
-    await tester.tap(find.byTooltip('More'));
+    await tester.tap(find.byTooltip('Settings'));
     await tester.pumpAndSettle();
 
     expect(find.text('Backup & restore'), findsOneWidget);
-    expect(find.text('Version 0.1.0 (build 7)'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Kipto · Version 0.1.0 (build 7)'), 200);
+    expect(find.text('Kipto · Version 0.1.0 (build 7)'), findsOneWidget);
   });
 
   testWidgets('a category made from the add expense form is used for it', (tester) async {
@@ -172,12 +173,12 @@ void main() {
     expect(store.expenses.single.categoryId, isNull);
   });
 
-  testWidgets('categories can be managed from the menu', (tester) async {
+  testWidgets('categories can be managed from settings', (tester) async {
     final store = ExpenseStore();
     await tester.pumpWidget(ExpenseTrackerApp(store: store));
-    await tester.tap(find.byTooltip('More'));
+    await tester.tap(find.byTooltip('Settings'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(PopupMenuItem<VoidCallback>, 'Categories'));
+    await tester.tap(find.text('Categories'));
     await tester.pumpAndSettle();
     expect(find.text('No categories yet'), findsOneWidget);
 

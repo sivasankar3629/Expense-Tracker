@@ -3,7 +3,10 @@ import 'package:flutter/foundation.dart';
 import '../data/expense_storage.dart';
 import '../models/account.dart';
 import '../models/category.dart';
+import '../models/currency.dart';
 import '../models/expense.dart';
+import '../models/preferences.dart';
+import '../utils/format.dart';
 import '../utils/ids.dart';
 
 /// Holds all expenses and accounts, notifies listeners on change and saves
@@ -18,6 +21,8 @@ class ExpenseStore extends ChangeNotifier {
         _categories = [...data.categories],
         _expenses = [...data.expenses]..sort(_newestFirst),
         _lastUsedAccountId = data.lastUsedAccountId ?? Account.cash.id,
+        _preferences = data.preferences ?? const Preferences(),
+        _themeChoice = data.themeChoice,
         _lastBackupAt = data.lastBackupAt;
 
   /// Creates a store pre-filled with everything previously saved in [storage].
@@ -29,6 +34,8 @@ class ExpenseStore extends ChangeNotifier {
   final List<ExpenseCategory> _categories;
   final List<Expense> _expenses;
   String _lastUsedAccountId;
+  Preferences _preferences;
+  ThemeChoice _themeChoice;
   DateTime? _lastBackupAt;
   Future<void> _pendingWrites = Future.value();
 
@@ -53,6 +60,7 @@ class ExpenseStore extends ChangeNotifier {
         categories: List.of(_categories),
         expenses: List.of(_expenses),
         lastUsedAccountId: _lastUsedAccountId,
+        preferences: _preferences,
       );
 
   DateTime? get lastBackupAt => _lastBackupAt;
@@ -77,6 +85,7 @@ class ExpenseStore extends ChangeNotifier {
       ..addAll(data.expenses)
       ..sort(_newestFirst);
     _lastUsedAccountId = data.lastUsedAccountId ?? Account.cash.id;
+    _preferences = data.preferences ?? _preferences;
     notifyListeners();
     _save(() => _storage.replaceAll(data));
   }
@@ -254,10 +263,57 @@ class ExpenseStore extends ChangeNotifier {
   List<Expense> expensesInCategory(String? categoryId) =>
       _expenses.where((e) => e.categoryId == categoryId).toList();
 
-  /// Expenses dated in the same calendar month as [month], newest first.
-  List<Expense> expensesInMonth(DateTime month) => _expenses
-      .where((e) => e.dateTime.year == month.year && e.dateTime.month == month.month)
-      .toList();
+  Preferences get preferences => _preferences;
+
+  Currency get currency => _preferences.currency;
+
+  void setCurrency(Currency currency) => _setPreferences(
+        _preferences.copyWith(currencyCode: currency.code),
+      );
+
+  void setMonthStartDay(int day) => _setPreferences(
+        _preferences.copyWith(monthStartDay: day.clamp(1, Preferences.maxMonthStartDay)),
+      );
+
+  void _setPreferences(Preferences preferences) {
+    if (preferences == _preferences) return;
+    _preferences = preferences;
+    notifyListeners();
+    _save(() => _storage.savePreferences(preferences));
+  }
+
+  ThemeChoice get themeChoice => _themeChoice;
+
+  void setThemeChoice(ThemeChoice choice) {
+    if (choice == _themeChoice) return;
+    _themeChoice = choice;
+    notifyListeners();
+    _save(() => _storage.saveThemeChoice(choice));
+  }
+
+  /// The budget month holding [day]: from the most recent month start day on
+  /// or before it, up to (not including) the next one.
+  ({DateTime start, DateTime end}) budgetMonthOf(DateTime day) {
+    final startDay = _preferences.monthStartDay;
+    final start = DateTime(day.year, day.day >= startDay ? day.month : day.month - 1, startDay);
+    return (start: start, end: DateTime(start.year, start.month + 1, startDay));
+  }
+
+  /// Expenses in the budget month holding [day], newest first.
+  List<Expense> expensesInBudgetMonth(DateTime day) {
+    final month = budgetMonthOf(day);
+    return [
+      for (final e in _expenses)
+        if (!e.dateTime.isBefore(month.start) && e.dateTime.isBefore(month.end)) e,
+    ];
+  }
+
+  /// Completes "Spent …" for the budget month holding [day]: "in October",
+  /// or "since 25 Oct" when months start on another day.
+  String budgetMonthLabel(DateTime day) {
+    if (_preferences.monthStartDay == 1) return 'in ${formatMonthName(day)}';
+    return 'since ${formatShortDate(budgetMonthOf(day).start)}';
+  }
 
   /// Sets or, with null, removes the category's monthly budget.
   void setCategoryBudget(ExpenseCategory category, double? amount) {

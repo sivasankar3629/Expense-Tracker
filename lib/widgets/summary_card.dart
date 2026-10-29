@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 
-import '../utils/format.dart';
+import 'currency_scope.dart';
 
-/// The month's total on a gradient, with the expense count and today's total.
+/// The budget month's total on a gradient, with the expense count and today's total.
 class SummaryCard extends StatelessWidget {
   const SummaryCard({
     super.key,
-    required this.month,
+    required this.period,
     required this.total,
     required this.count,
     required this.todayTotal,
   });
 
-  final String month;
+  /// Completes "Spent …", e.g. "in October".
+  final String period;
   final double total;
   final int count;
   final double todayTotal;
@@ -35,10 +36,10 @@ class SummaryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Spent in $month', style: theme.textTheme.bodyMedium?.copyWith(color: muted)),
+          Text('Spent $period', style: theme.textTheme.bodyMedium?.copyWith(color: muted)),
           const SizedBox(height: 6),
           Text(
-            formatAmount(total),
+            context.formatAmount(total),
             style: theme.textTheme.displaySmall?.copyWith(
               color: scheme.onPrimary,
               fontWeight: FontWeight.w700,
@@ -51,7 +52,7 @@ class SummaryCard extends StatelessWidget {
             runSpacing: 8,
             children: [
               _Pill(count == 1 ? '1 expense' : '$count expenses'),
-              _Pill('Today ${formatAmount(todayTotal)}'),
+              _Pill('Today ${context.formatAmount(todayTotal)}'),
             ],
           ),
         ],

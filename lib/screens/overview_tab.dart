@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../models/expense.dart';
 import '../state/expense_store.dart';
-import '../utils/format.dart';
 import '../widgets/category_card.dart';
 import '../widgets/category_dialog.dart';
 import '../widgets/expense_list.dart';
@@ -33,7 +32,7 @@ class OverviewTab extends StatelessWidget {
       listenable: store,
       builder: (context, _) {
         final now = DateTime.now();
-        final thisMonth = store.expensesInMonth(now);
+        final thisMonth = store.expensesInBudgetMonth(now);
         final expenses = store.expenses;
 
         final spentBy = <String?, double>{};
@@ -54,7 +53,7 @@ class OverviewTab extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
           children: [
             SummaryCard(
-              month: formatMonthName(now),
+              period: store.budgetMonthLabel(now),
               total: totalOf(thisMonth),
               count: thisMonth.length,
               todayTotal: totalOf(thisMonth.where((e) => DateUtils.isSameDay(e.dateTime, now))),

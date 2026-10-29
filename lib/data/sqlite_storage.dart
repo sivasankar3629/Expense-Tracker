@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import '../models/account.dart';
 import '../models/category.dart';
 import '../models/expense.dart';
+import '../models/preferences.dart';
 import 'expense_storage.dart';
 
 /// Saves data in a SQLite database on the device.
@@ -13,6 +14,9 @@ class SqliteStorage implements ExpenseStorage {
 
   static const _lastUsedAccountKey = 'last_used_account_id';
   static const _lastBackupAtKey = 'last_backup_at';
+  static const _currencyKey = 'currency';
+  static const _monthStartDayKey = 'month_start_day';
+  static const _themeKey = 'theme';
 
   /// [factory] and [path] are overridable so tests can use a desktop SQLite.
   static Future<SqliteStorage> open({DatabaseFactory? factory, String? path}) async {
@@ -95,6 +99,7 @@ class SqliteStorage implements ExpenseStorage {
       for (final row in await _db.query('settings')) row['key'] as String: row['value'] as String,
     };
     final lastBackupAt = settings[_lastBackupAtKey];
+    final theme = settings[_themeKey];
     return StoredData(
       accounts: [
         for (final row in accountRows)
@@ -130,7 +135,12 @@ class SqliteStorage implements ExpenseStorage {
           ),
       ],
       lastUsedAccountId: settings[_lastUsedAccountKey],
+      preferences: Preferences.fromJson({
+        'currency': settings[_currencyKey],
+        'monthStartDay': int.tryParse(settings[_monthStartDayKey] ?? ''),
+      }),
       lastBackupAt: lastBackupAt == null ? null : DateTime.parse(lastBackupAt),
+      themeChoice: ThemeChoice.values.asNameMap()[theme] ?? ThemeChoice.system,
     );
   }
 
@@ -222,6 +232,24 @@ class SqliteStorage implements ExpenseStorage {
   Future<void> saveLastBackupAt(DateTime time) =>
       _saveSetting(_lastBackupAtKey, time.toIso8601String());
 
+  @override
+  Future<void> savePreferences(Preferences preferences) async {
+    final batch = _db.batch();
+    _preferenceRows(preferences).forEach((key, value) {
+      batch.insert('settings', {'key': key, 'value': value},
+          conflictAlgorithm: ConflictAlgorithm.replace);
+    });
+    await batch.commit(noResult: true);
+  }
+
+  static Map<String, String> _preferenceRows(Preferences preferences) => {
+        _currencyKey: preferences.currencyCode,
+        _monthStartDayKey: '${preferences.monthStartDay}',
+      };
+
+  @override
+  Future<void> saveThemeChoice(ThemeChoice choice) => _saveSetting(_themeKey, choice.name);
+
   Future<void> _saveSetting(String key, String value) async {
     await _db.insert(
       'settings',
@@ -251,6 +279,12 @@ class SqliteStorage implements ExpenseStorage {
       final lastUsed = data.lastUsedAccountId;
       if (lastUsed != null) {
         batch.insert('settings', {'key': _lastUsedAccountKey, 'value': lastUsed});
+      }
+      if (data.preferences case final preferences?) {
+        _preferenceRows(preferences).forEach((key, value) {
+          batch.insert('settings', {'key': key, 'value': value},
+              conflictAlgorithm: ConflictAlgorithm.replace);
+        });
       }
       await batch.commit(noResult: true);
     });

@@ -4,6 +4,7 @@ import '../data/expense_storage.dart';
 import '../models/account.dart';
 import '../models/category.dart';
 import '../models/expense.dart';
+import '../models/preferences.dart';
 import 'cloud_backup.dart';
 
 /// Saves to the phone first, then copies each change to [cloud] while one is
@@ -94,6 +95,16 @@ class SyncedStorage implements ExpenseStorage {
   /// Device-only; not something to copy between phones.
   @override
   Future<void> saveLastBackupAt(DateTime time) => local.saveLastBackupAt(time);
+
+  @override
+  Future<void> savePreferences(Preferences preferences) async {
+    await local.savePreferences(preferences);
+    _mirror((c) => c.savePreferences(preferences));
+  }
+
+  /// Device-only, like [saveLastBackupAt].
+  @override
+  Future<void> saveThemeChoice(ThemeChoice choice) => local.saveThemeChoice(choice);
 
   @override
   Future<void> replaceAll(StoredData data) async {

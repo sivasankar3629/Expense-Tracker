@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../models/account.dart';
 import '../models/category.dart';
 import '../models/expense.dart';
+import '../models/preferences.dart';
 import 'expense_storage.dart';
 
 /// Why a file couldn't be restored, in words fit to show the user.
@@ -40,6 +41,8 @@ class Backup {
         'version': currentVersion,
         'exportedAt': exportedAt.toIso8601String(),
         'lastUsedAccountId': data.lastUsedAccountId,
+        // Optional: older backups don't have it.
+        'preferences': data.preferences?.toJson(),
         'accounts': [
           for (final a in data.accounts)
             {'id': a.id, 'nickname': a.nickname, 'type': a.type.name},
@@ -139,6 +142,7 @@ class Backup {
       ];
 
       final lastUsed = json['lastUsedAccountId'];
+      final preferences = json['preferences'];
       return Backup(
         exportedAt: DateTime.parse(_string(json, 'exportedAt')),
         data: StoredData(
@@ -147,6 +151,7 @@ class Backup {
           expenses: expenses,
           lastUsedAccountId:
               lastUsed is String && knownAccountIds.contains(lastUsed) ? lastUsed : null,
+          preferences: preferences is Map ? Preferences.fromJson(preferences) : null,
         ),
       );
     } on BackupFormatException {

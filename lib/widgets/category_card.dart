@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../models/category.dart';
-import '../utils/format.dart';
 import 'budget.dart';
 import 'category_icon.dart';
+import 'currency_scope.dart';
 
 /// A home-screen tile: this month's spending in a category, with its budget.
 class CategoryCard extends StatelessWidget {
@@ -74,7 +74,7 @@ class CategoryCard extends StatelessWidget {
                 style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
               ),
               Text(
-                formatAmount(spent),
+                context.formatAmount(spent),
                 maxLines: 1,
                 style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
               ),

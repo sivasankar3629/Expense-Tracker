@@ -3,11 +3,10 @@ import 'package:flutter/material.dart';
 import '../cloud/cloud_sync.dart';
 import '../state/expense_store.dart';
 import '../widgets/expense_list.dart';
-import 'accounts_screen.dart';
 import 'backup_screen.dart';
-import 'categories_screen.dart';
 import 'history_tab.dart';
 import 'overview_tab.dart';
+import 'settings_screen.dart';
 
 /// The app's frame: Home and History tabs, a shared top bar and Add button.
 class AppShell extends StatefulWidget {
@@ -18,7 +17,7 @@ class AppShell extends StatefulWidget {
   /// Null when cloud backup isn't set up for this build.
   final CloudSync? cloudSync;
 
-  /// Shown at the bottom of the menu so it's easy to tell which build is installed.
+  /// Shown at the bottom of Settings so it's easy to tell which build is installed.
   final String? versionLabel;
 
   @override
@@ -49,39 +48,13 @@ class _AppShellState extends State<AppShell> {
                   _CloudStatusButton(status: sync.status, onPressed: _openBackup),
             ),
           IconButton(
-            icon: const Icon(Icons.account_balance_wallet_outlined),
-            tooltip: 'Accounts & cards',
-            onPressed: () => _push(AccountsScreen(store: _store)),
-          ),
-          PopupMenuButton<VoidCallback>(
-            tooltip: 'More',
-            onSelected: (action) => action(),
-            itemBuilder: (_) => [
-              PopupMenuItem(
-                value: () => _push(CategoriesScreen(store: _store)),
-                child: const ListTile(
-                  leading: Icon(Icons.category_outlined),
-                  title: Text('Categories'),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-              PopupMenuItem(
-                value: _openBackup,
-                child: const ListTile(
-                  leading: Icon(Icons.settings_backup_restore),
-                  title: Text('Backup & restore'),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-              if (widget.versionLabel case final label?) ...[
-                const PopupMenuDivider(),
-                PopupMenuItem(
-                  enabled: false,
-                  height: 36,
-                  child: Text(label, style: Theme.of(context).textTheme.bodySmall),
-                ),
-              ],
-            ],
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
+            onPressed: () => _push(SettingsScreen(
+              store: _store,
+              cloudSync: widget.cloudSync,
+              versionLabel: widget.versionLabel,
+            )),
           ),
           const SizedBox(width: 4),
         ],

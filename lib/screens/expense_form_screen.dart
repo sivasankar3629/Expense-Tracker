@@ -7,6 +7,7 @@ import '../state/expense_store.dart';
 import '../utils/format.dart';
 import '../widgets/account_chips.dart';
 import '../widgets/category_picker.dart';
+import '../widgets/currency_scope.dart';
 
 /// What happened on the form, so the caller can react (e.g. offer undo).
 enum ExpenseFormResult { saved, deleted }
@@ -145,7 +146,7 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                     inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
                     decoration: InputDecoration(
                       labelText: 'Amount',
-                      prefixText: '₹ ',
+                      prefixText: context.currencyPrefix,
                       prefixStyle: amountStyle,
                       contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
                     ),

@@ -6,6 +6,7 @@ import '../models/expense.dart';
 import '../screens/expense_form_screen.dart';
 import '../state/expense_store.dart';
 import '../utils/format.dart';
+import 'currency_scope.dart';
 
 /// Opening, editing and deleting expenses the same way from every screen.
 class ExpenseActions {
@@ -72,7 +73,7 @@ List<Widget> expenseMonthSections(
         children: [
           SectionHeader(
             title: month,
-            trailing: formatAmount(items.fold<double>(0, (sum, e) => sum + e.amount)),
+            trailing: context.formatAmount(items.fold<double>(0, (sum, e) => sum + e.amount)),
           ),
           ExpenseCard(store: store, expenses: items, showCategory: showCategory),
         ],
@@ -246,7 +247,7 @@ class ExpenseTile extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Text(
-            formatAmount(expense.amount),
+            context.formatAmount(expense.amount),
             style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
         ],
