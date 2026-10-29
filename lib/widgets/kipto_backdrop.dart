@@ -33,8 +33,7 @@ class _Leaves extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = const Color(0xFFB7D597).withValues(alpha: dark ? 0.05 : 0.13);
-    canvas.drawCircle(Offset(size.width * 0.76, 18), 45, paint);
+    final paint = Paint();
     for (final left in [true, false]) {
       canvas.save();
       canvas.translate(left ? 0 : size.width, size.height);

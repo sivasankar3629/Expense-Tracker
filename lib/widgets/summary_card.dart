@@ -48,7 +48,17 @@ class SummaryCard extends StatelessWidget {
                   child: IgnorePointer(child: KiptoArt.wallet(size: 112)),
                 ),
               Positioned.fill(
-                child: IgnorePointer(child: CustomPaint(painter: _SummaryWave())),
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: _SummaryWave(
+                      // A pale wave on the light page; a deep one in dark mode,
+                      // where a pale band would glare.
+                      theme.brightness == Brightness.dark
+                          ? const Color(0xFF2B4A37)
+                          : const Color(0xFFDEEDD2),
+                    ),
+                  ),
+                ),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 24, 20, 30),
@@ -162,7 +172,9 @@ class _SummaryShape extends CustomClipper<Path> {
 }
 
 class _SummaryWave extends CustomPainter {
-  const _SummaryWave();
+  const _SummaryWave(this.color);
+
+  final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -173,9 +185,9 @@ class _SummaryWave extends CustomPainter {
       ..lineTo(size.width, size.height)
       ..lineTo(0, size.height)
       ..close();
-    canvas.drawPath(path, Paint()..color = const Color(0xFFDEEDD2));
+    canvas.drawPath(path, Paint()..color = color);
   }
 
   @override
-  bool shouldRepaint(_SummaryWave oldDelegate) => false;
+  bool shouldRepaint(_SummaryWave oldDelegate) => color != oldDelegate.color;
 }
