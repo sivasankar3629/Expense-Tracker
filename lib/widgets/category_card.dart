@@ -66,28 +66,39 @@ class CategoryCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  CategoryIcon(icon: icon, color: color, size: 40),
-                  const Spacer(),
+                  CategoryIcon(icon: icon, color: color, size: 32),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      context.formatAmount(spent),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800, letterSpacing: -0.6,
+                      ),
+                    ),
+                  ),
+                  // Beside the amount rather than the name, which needs the room.
                   if (over)
                     Icon(Icons.warning_amber_rounded, size: 20, color: theme.colorScheme.error),
                 ],
               ),
-              const Spacer(),
-              Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              Text(
-                context.formatAmount(spent),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800, letterSpacing: -0.6,
-                ),
-              ),
               const SizedBox(height: 8),
+              // Keeps budget bars level across a row, whatever the text size.
+              const Spacer(),
               if (budget != null)
                 BudgetProgress(spent: spent, budget: budget, color: categoryAccent(color), compact: true)
               else ...[
@@ -161,7 +172,8 @@ class CategoryGrid extends StatelessWidget {
         maxCrossAxisExtent: MediaQuery.textScalerOf(context).scale(14) > 18 ? 480 : 240,
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
-        mainAxisExtent: MediaQuery.textScalerOf(context).scale(176),
+        // Just enough for the content at normal text size; grows with it.
+        mainAxisExtent: MediaQuery.textScalerOf(context).scale(136),
       ),
       children: children,
     );
