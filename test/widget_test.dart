@@ -50,9 +50,7 @@ void main() {
     await tester.pumpWidget(ExpenseTrackerApp(store: store));
     await openAddExpense(tester);
 
-    await tester.tap(find.text('Cash'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Add bank account or card'));
+    await tester.tap(find.text('New account'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Credit card'));
     await tester.enterText(find.widgetWithText(TextFormField, 'Nickname'), 'HDFC Millennia');
@@ -156,7 +154,8 @@ void main() {
 
     final food = store.categories.single;
     expect(store.expenses.single.categoryId, food.id);
-    expect(find.textContaining('Food', findRichText: true), findsOneWidget);
+    // On its card in the category grid, and on the expense's row.
+    expect(find.textContaining('Food', findRichText: true), findsNWidgets(2));
   });
 
   testWidgets('tapping the selected category clears it', (tester) async {
@@ -178,7 +177,7 @@ void main() {
     await tester.pumpWidget(ExpenseTrackerApp(store: store));
     await tester.tap(find.byTooltip('More'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Categories'));
+    await tester.tap(find.widgetWithText(PopupMenuItem<VoidCallback>, 'Categories'));
     await tester.pumpAndSettle();
     expect(find.text('No categories yet'), findsOneWidget);
 

@@ -1,3 +1,5 @@
+import '../utils/ids.dart';
+
 class Expense {
   Expense({
     String? id,
@@ -7,7 +9,7 @@ class Expense {
     required this.accountId,
     this.categoryId,
     this.notes = '',
-  }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
+  }) : id = id ?? newId();
 
   final String id;
   final String title;

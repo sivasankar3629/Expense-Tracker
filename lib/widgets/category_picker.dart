@@ -64,7 +64,7 @@ class CategoryPicker extends StatelessWidget {
                   ],
                   ActionChip(
                     avatar: const Icon(Icons.add, size: 18),
-                    label: Text(categories.isEmpty ? 'Create a category' : 'New'),
+                    label: Text(categories.isEmpty ? 'Create a category' : 'New category'),
                     onPressed: () => _create(context),
                   ),
                 ],

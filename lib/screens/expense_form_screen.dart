@@ -5,8 +5,7 @@ import '../models/account.dart';
 import '../models/expense.dart';
 import '../state/expense_store.dart';
 import '../utils/format.dart';
-import '../widgets/account_icon.dart';
-import '../widgets/account_picker_sheet.dart';
+import '../widgets/account_chips.dart';
 import '../widgets/category_picker.dart';
 
 /// What happened on the form, so the caller can react (e.g. offer undo).
@@ -14,10 +13,19 @@ enum ExpenseFormResult { saved, deleted }
 
 /// Adds a new expense, or edits [initial] when given. Saves straight to [store].
 class ExpenseFormScreen extends StatefulWidget {
-  const ExpenseFormScreen({super.key, required this.store, this.initial});
+  const ExpenseFormScreen({
+    super.key,
+    required this.store,
+    this.initial,
+    this.initialCategoryId,
+  });
 
   final ExpenseStore store;
   final Expense? initial;
+
+  /// Pre-selects a category for a new expense, e.g. when adding from that
+  /// category's screen.
+  final String? initialCategoryId;
 
   @override
   State<ExpenseFormScreen> createState() => _ExpenseFormScreenState();
@@ -35,7 +43,8 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
   late TimeOfDay _time = TimeOfDay.fromDateTime(widget.initial?.dateTime ?? DateTime.now());
   late Account _account = _initialAccount();
   // Dropped if the category has since been deleted.
-  late String? _categoryId = widget.store.categoryById(widget.initial?.categoryId)?.id;
+  late String? _categoryId =
+      widget.store.categoryById(widget.initial?.categoryId ?? widget.initialCategoryId)?.id;
 
   bool get _isEditing => widget.initial != null;
 
@@ -70,11 +79,6 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
   Future<void> _pickTime() async {
     final picked = await showTimePicker(context: context, initialTime: _time);
     if (picked != null) setState(() => _time = picked);
-  }
-
-  Future<void> _pickAccount() async {
-    final picked = await showAccountPicker(context, store: widget.store, selected: _account);
-    if (picked != null) setState(() => _account = picked);
   }
 
   void _submit() {
@@ -170,14 +174,12 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                     onChanged: (id) => setState(() => _categoryId = id),
                   ),
                   const SizedBox(height: 16),
-                  _PickerField(
-                    label: 'Paid from',
-                    value: _account.nickname,
-                    leading: AccountIcon(_account.type, size: 28),
-                    onTap: _pickAccount,
-                    showChevron: true,
+                  AccountChips(
+                    store: widget.store,
+                    selected: _account,
+                    onChanged: (account) => setState(() => _account = account),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   Row(
                     children: [
                       Expanded(
@@ -239,16 +241,12 @@ class _PickerField extends StatelessWidget {
     required this.value,
     required this.leading,
     required this.onTap,
-    this.showChevron = false,
   });
 
   final String label;
   final String value;
   final Widget leading;
   final VoidCallback onTap;
-
-  /// Hints that tapping opens a list; skipped on narrow fields to save room.
-  final bool showChevron;
 
   @override
   Widget build(BuildContext context) {
@@ -263,7 +261,6 @@ class _PickerField extends StatelessWidget {
             child: Center(widthFactor: 1, heightFactor: 1, child: leading),
           ),
           prefixIconConstraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-          suffixIcon: showChevron ? const Icon(Icons.expand_more) : null,
         ),
         child: Text(value, maxLines: 1, overflow: TextOverflow.ellipsis),
       ),

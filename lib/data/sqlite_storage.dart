@@ -21,13 +21,15 @@ class SqliteStorage implements ExpenseStorage {
     final db = await dbFactory.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 2,
+        version: 3,
         onCreate: (db, version) async {
           await _createVersion1(db);
           await _upgradeToVersion2(db);
+          await _upgradeToVersion3(db);
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) await _upgradeToVersion2(db);
+          if (oldVersion < 3) await _upgradeToVersion3(db);
         },
       ),
     );
@@ -77,6 +79,11 @@ class SqliteStorage implements ExpenseStorage {
     await batch.commit(noResult: true);
   }
 
+  /// Adds monthly budgets, in paise; null means no budget.
+  static Future<void> _upgradeToVersion3(Database db) async {
+    await db.execute('ALTER TABLE categories ADD COLUMN budget_paise INTEGER');
+  }
+
   Future<void> close() => _db.close();
 
   @override
@@ -104,6 +111,10 @@ class SqliteStorage implements ExpenseStorage {
             name: row['name'] as String,
             iconKey: row['icon'] as String,
             colorValue: row['color'] as int,
+            monthlyBudget: switch (row['budget_paise']) {
+              final int paise => paise / 100,
+              _ => null,
+            },
           ),
       ],
       expenses: [
@@ -138,7 +149,10 @@ class SqliteStorage implements ExpenseStorage {
         'name': category.name,
         'icon': category.iconKey,
         'color': category.colorValue,
+        'budget_paise': _paise(category.monthlyBudget),
       };
+
+  static int? _paise(double? amount) => amount == null ? null : (amount * 100).round();
 
   static Map<String, Object?> _accountRow(Account account) => {
         'id': account.id,

@@ -9,7 +9,7 @@ import 'cloud_backup.dart';
 /// Keeps a user's data under `users/{uid}` in Firestore:
 ///
 /// - `accounts/{id}`: nickname, type
-/// - `categories/{id}`: name, icon, color
+/// - `categories/{id}`: name, icon, color, budgetPaise (null if none)
 /// - `expenses/{id}`: title, amountPaise, dateTime (ms since epoch), accountId,
 ///   categoryId (null if none), notes
 /// - `meta/settings`: lastUsedAccountId
@@ -45,6 +45,7 @@ class FirestoreBackup implements CloudBackup {
         'name': c.name,
         'icon': c.iconKey,
         'color': c.colorValue,
+        'budgetPaise': c.monthlyBudget == null ? null : (c.monthlyBudget! * 100).round(),
       };
 
   static Map<String, Object?> _accountData(Account a) => {
@@ -67,6 +68,10 @@ class FirestoreBackup implements CloudBackup {
         name: d['name'] as String,
         iconKey: d['icon'] as String,
         colorValue: (d['color'] as num).toInt(),
+        monthlyBudget: switch (d['budgetPaise']) {
+          final num paise => paise.toInt() / 100,
+          _ => null,
+        },
       );
 
   static Account _accountFrom(String id, Map<String, Object?> d) => Account(

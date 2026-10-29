@@ -46,7 +46,14 @@ class Backup {
         ],
         'categories': [
           for (final c in data.categories)
-            {'id': c.id, 'name': c.name, 'icon': c.iconKey, 'color': c.colorValue},
+            {
+              'id': c.id,
+              'name': c.name,
+              'icon': c.iconKey,
+              'color': c.colorValue,
+              // Optional: older version 2 backups simply don't have it.
+              'budgetPaise': c.monthlyBudget == null ? null : (c.monthlyBudget! * 100).round(),
+            },
         ],
         'expenses': [
           for (final e in data.expenses)
@@ -102,6 +109,10 @@ class Backup {
             name: _string(raw, 'name'),
             iconKey: _string(raw, 'icon'),
             colorValue: _int(raw, 'color'),
+            monthlyBudget: switch ((raw as Map)['budgetPaise']) {
+              final int paise => paise / 100,
+              _ => null,
+            },
           ),
       ];
       final knownCategoryIds = {for (final c in categories) c.id};

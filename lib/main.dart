@@ -11,7 +11,7 @@ import 'cloud/synced_storage.dart';
 import 'data/expense_storage.dart';
 import 'data/sqlite_storage.dart';
 import 'firebase_config.dart';
-import 'screens/home_screen.dart';
+import 'screens/app_shell.dart';
 import 'state/expense_store.dart';
 import 'theme.dart';
 
@@ -69,7 +69,7 @@ class ExpenseTrackerApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),
-      home: HomeScreen(store: store, cloudSync: cloudSync, versionLabel: versionLabel),
+      home: AppShell(store: store, cloudSync: cloudSync, versionLabel: versionLabel),
     );
   }
 }

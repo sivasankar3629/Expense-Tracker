@@ -8,6 +8,7 @@ class ExpenseCategory {
     required this.name,
     required this.iconKey,
     required this.colorValue,
+    this.monthlyBudget,
   });
 
   final String id;
@@ -20,15 +21,28 @@ class ExpenseCategory {
   /// ARGB colour, one of [categoryColors].
   final int colorValue;
 
+  /// Spending limit per calendar month, or null for none. Resets each month.
+  final double? monthlyBudget;
+
   IconData get icon => categoryIcons[iconKey] ?? Icons.label_outline;
 
   Color get color => Color(colorValue);
 
-  ExpenseCategory copyWith({String? name, String? iconKey, int? colorValue}) => ExpenseCategory(
+  /// Pass [clearBudget] to remove the budget, since a null [monthlyBudget]
+  /// here means "keep it".
+  ExpenseCategory copyWith({
+    String? name,
+    String? iconKey,
+    int? colorValue,
+    double? monthlyBudget,
+    bool clearBudget = false,
+  }) =>
+      ExpenseCategory(
         id: id,
         name: name ?? this.name,
         iconKey: iconKey ?? this.iconKey,
         colorValue: colorValue ?? this.colorValue,
+        monthlyBudget: clearBudget ? null : monthlyBudget ?? this.monthlyBudget,
       );
 }
 

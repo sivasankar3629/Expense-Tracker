@@ -4,6 +4,7 @@ import '../data/expense_storage.dart';
 import '../models/account.dart';
 import '../models/category.dart';
 import '../models/expense.dart';
+import '../utils/ids.dart';
 
 /// Holds all expenses and accounts, notifies listeners on change and saves
 /// every change to [ExpenseStorage].
@@ -143,7 +144,7 @@ class ExpenseStore extends ChangeNotifier {
 
   Account addAccount(String nickname, AccountType type) {
     final account = Account(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      id: newId(),
       nickname: nickname.trim(),
       type: type,
     );
@@ -210,7 +211,7 @@ class ExpenseStore extends ChangeNotifier {
     required int colorValue,
   }) {
     final category = ExpenseCategory(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      id: newId(),
       name: name.trim(),
       iconKey: iconKey,
       colorValue: colorValue,
@@ -248,4 +249,25 @@ class ExpenseStore extends ChangeNotifier {
     }
     _save(() => _storage.deleteCategory(category.id));
   }
+
+  /// Expenses in [categoryId], newest first; null gives the uncategorised ones.
+  List<Expense> expensesInCategory(String? categoryId) =>
+      _expenses.where((e) => e.categoryId == categoryId).toList();
+
+  /// Expenses dated in the same calendar month as [month], newest first.
+  List<Expense> expensesInMonth(DateTime month) => _expenses
+      .where((e) => e.dateTime.year == month.year && e.dateTime.month == month.month)
+      .toList();
+
+  /// Sets or, with null, removes the category's monthly budget.
+  void setCategoryBudget(ExpenseCategory category, double? amount) {
+    final current = categoryById(category.id);
+    if (current == null) return;
+    updateCategory(
+      amount == null ? current.copyWith(clearBudget: true) : current.copyWith(monthlyBudget: amount),
+    );
+  }
 }
+
+/// Total of [expenses]' amounts.
+double totalOf(Iterable<Expense> expenses) => expenses.fold(0, (sum, e) => sum + e.amount);
