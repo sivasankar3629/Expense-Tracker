@@ -73,12 +73,12 @@ class BudgetProgress extends StatelessWidget {
           borderRadius: BorderRadius.circular(4),
           child: LinearProgressIndicator(
             value: budget <= 0 ? 1 : (spent / budget).clamp(0, 1),
-            minHeight: compact ? 6 : 8,
+            minHeight: compact ? 4 : 8,
             color: barColor,
             backgroundColor: barColor.withValues(alpha: 0.15),
           ),
         ),
-        SizedBox(height: action == null ? 6 : 2),
+        SizedBox(height: action == null ? (compact ? 4 : 6) : 2),
         Row(
           children: [
             Expanded(
@@ -87,6 +87,8 @@ class BudgetProgress extends StatelessWidget {
                 maxLines: compact ? 1 : null,
                 overflow: compact ? TextOverflow.ellipsis : TextOverflow.visible,
                 style: theme.textTheme.bodySmall?.copyWith(
+                  fontSize: compact ? 10.5 : null,
+                  height: compact ? 1.2 : null,
                   color: level == BudgetLevel.ok
                       ? theme.colorScheme.onSurfaceVariant
                       : categoryInk(context, barColor),

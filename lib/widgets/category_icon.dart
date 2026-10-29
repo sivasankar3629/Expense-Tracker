@@ -21,12 +21,22 @@ class CategoryIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final accent = categoryAccent(color);
+    final opacity = dark ? 0.3 : (accent.computeLuminance() < 0.2 ? 0.3 : 0.68);
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: categoryAccent(color).withValues(alpha: 0.22),
-        borderRadius: BorderRadius.circular(size * 0.3),
+        color: accent.withValues(alpha: opacity),
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: categoryAccent(color).withValues(alpha: 0.16),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Icon(icon, color: categoryInk(context, color), size: size * 0.55),
     );

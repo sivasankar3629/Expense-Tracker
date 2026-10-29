@@ -12,7 +12,7 @@ ThemeData buildTheme(Brightness brightness) {
     onPrimary: dark ? const Color(0xFF123526) : Colors.white,
     surface: dark ? const Color(0xFF121B17) : const Color(0xFFF7F6F0),
     surfaceContainerLow: dark ? const Color(0xFF1B2720) : const Color(0xFFFFFEFA),
-    onSurface: dark ? const Color(0xFFE9EEE5) : const Color(0xFF202E27),
+    onSurface: dark ? const Color(0xFFE9EEE5) : const Color(0xFF142D35),
     onSurfaceVariant: dark ? const Color(0xFFB2C0B5) : const Color(0xFF626F64),
     outlineVariant: dark ? const Color(0xFF35463A) : const Color(0xFFE1E5DA),
   );
@@ -36,6 +36,7 @@ ThemeData buildTheme(Brightness brightness) {
       bodyMedium: base.textTheme.bodyMedium?.copyWith(height: 1.4),
     ),
     appBarTheme: AppBarTheme(
+      toolbarHeight: 64,
       backgroundColor: scheme.surface,
       foregroundColor: scheme.onSurface,
       centerTitle: false,
@@ -43,7 +44,7 @@ ThemeData buildTheme(Brightness brightness) {
       elevation: 0,
       titleTextStyle: TextStyle(
         fontFamily: 'PlusJakartaSans',
-        fontSize: 26,
+        fontSize: 28,
         fontWeight: FontWeight.w800,
         letterSpacing: -0.8,
         color: scheme.onSurface,
@@ -88,8 +89,8 @@ ThemeData buildTheme(Brightness brightness) {
       shape: const StadiumBorder(),
     ),
     cardTheme: CardThemeData(
-      elevation: 1,
-      shadowColor: const Color(0x14285C46),
+      elevation: 2,
+      shadowColor: const Color(0x24285C46),
       surfaceTintColor: Colors.transparent,
       margin: EdgeInsets.zero,
       color: scheme.surfaceContainerLow,

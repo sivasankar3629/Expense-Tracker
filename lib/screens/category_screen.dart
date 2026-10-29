@@ -72,6 +72,7 @@ class CategoryScreen extends StatelessWidget {
             ],
           ),
           floatingActionButton: FloatingActionButton.extended(
+            tooltip: 'Add expense',
             onPressed: () => ExpenseActions.add(context, store, categoryId: categoryId),
             icon: const Icon(Icons.add),
             label: const Text('Add expense'),

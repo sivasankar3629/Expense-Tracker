@@ -53,65 +53,70 @@ class CategoryCard extends StatelessWidget {
     final over = budget != null && BudgetLevel.of(spent, budget) == BudgetLevel.over;
     return Card(
       color: categorySurface(context, color),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: categoryAccent(color).withValues(alpha: 0.18)),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
+          padding: const EdgeInsets.all(10),
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  CategoryIcon(icon: icon, color: color, size: 32),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              CategoryIcon(icon: icon, color: color, size: 38),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: 15,
+                          color: categoryInk(context, color),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      context.formatAmount(spent),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800, letterSpacing: -0.6,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            context.formatAmount(spent),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.5,
+                            ),
+                          ),
+                        ),
+                        if (over)
+                          Icon(Icons.warning_amber_rounded, size: 15, color: theme.colorScheme.error),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    if (budget != null)
+                      BudgetProgress(spent: spent, budget: budget, color: categoryAccent(color), compact: true)
+                    else
+                      Text(
+                        count == 0 ? 'Nothing this month' : (count == 1 ? '1 this month' : '$count this month'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                  ),
-                  // Beside the amount rather than the name, which needs the room.
-                  if (over)
-                    Icon(Icons.warning_amber_rounded, size: 20, color: theme.colorScheme.error),
-                ],
-              ),
-              const SizedBox(height: 8),
-              // Keeps budget bars level across a row, whatever the text size.
-              const Spacer(),
-              if (budget != null)
-                BudgetProgress(spent: spent, budget: budget, color: categoryAccent(color), compact: true)
-              else ...[
-                // Same height as a budget bar and its gap, so tiles line up.
-                const SizedBox(height: 12),
-                Text(
-                  count == 0 ? 'Nothing this month' : (count == 1 ? '1 this month' : '$count this month'),
-                  maxLines: 1,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ],
           ),
         ),
@@ -130,24 +135,34 @@ class NewCategoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Card(
+      elevation: 0,
       color: Colors.transparent,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(22),
-        side: BorderSide(color: scheme.outlineVariant),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.add, color: scheme.primary),
-              const SizedBox(height: 6),
-              Text(
-                'New category',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(color: scheme.primary),
-              ),
-            ],
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: CustomPaint(
+        painter: _DashedBorder(scheme.outlineVariant),
+        child: InkWell(
+          onTap: onTap,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: scheme.primaryContainer,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.add_rounded, color: scheme.primary, size: 25),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'New category',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: scheme.onSurfaceVariant, fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -170,12 +185,36 @@ class CategoryGrid extends StatelessWidget {
       padding: EdgeInsets.zero,
       gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: MediaQuery.textScalerOf(context).scale(14) > 18 ? 480 : 240,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        // Just enough for the content at normal text size; grows with it.
-        mainAxisExtent: MediaQuery.textScalerOf(context).scale(136),
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        mainAxisExtent: MediaQuery.textScalerOf(context).scale(96),
       ),
       children: children,
     );
   }
+}
+
+class _DashedBorder extends CustomPainter {
+  const _DashedBorder(this.color);
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final border = Path()..addRRect(RRect.fromRectAndRadius(
+      (Offset.zero & size).deflate(1), const Radius.circular(20),
+    ));
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    for (final metric in border.computeMetrics()) {
+      for (double distance = 0; distance < metric.length; distance += 9) {
+        canvas.drawPath(metric.extractPath(distance, distance + 5), paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedBorder oldDelegate) => color != oldDelegate.color;
 }

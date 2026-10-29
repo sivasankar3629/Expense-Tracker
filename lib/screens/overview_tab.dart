@@ -66,7 +66,10 @@ class OverviewTab extends StatelessWidget {
                       onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => CategoriesScreen(store: store)),
                       ),
-                      child: const Text('Manage'),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [Text('Manage'), SizedBox(width: 4), Icon(Icons.chevron_right, size: 18)],
+                      ),
                     ),
             ),
             if (categories.isEmpty && !hasUncategorised)
@@ -96,7 +99,13 @@ class OverviewTab extends StatelessWidget {
             SectionHeader(
               title: 'Recent',
               action: expenses.length > _recentCount
-                  ? TextButton(onPressed: onSeeAll, child: const Text('See all'))
+                  ? TextButton(
+                      onPressed: onSeeAll,
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [Text('See all'), SizedBox(width: 4), Icon(Icons.chevron_right, size: 18)],
+                      ),
+                    )
                   : null,
             ),
             if (expenses.isEmpty)
@@ -106,7 +115,7 @@ class OverviewTab extends StatelessWidget {
                 message: 'Tap Add expense to log your first one.',
               )
             else
-              ExpenseCard(store: store, expenses: expenses.take(_recentCount).toList()),
+              ExpenseCard(store: store, expenses: expenses.take(_recentCount).toList(), recent: true),
           ],
         );
       },

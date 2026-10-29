@@ -10,7 +10,7 @@ import 'package:expense_tracker/widgets/expense_list.dart';
 
 void main() {
   Future<void> openAddExpense(WidgetTester tester) async {
-    await tester.tap(find.text('Add expense'));
+    await tester.tap(find.byTooltip('Add expense'));
     await tester.pumpAndSettle();
   }
 
@@ -42,7 +42,7 @@ void main() {
     // ...and the row, with its month header.
     expect(await scrollTo(tester, find.text('Tea')), findsOneWidget);
     expect(find.descendant(of: find.byType(ExpenseTile), matching: find.text('₹12')), findsOneWidget);
-    expect(find.text('${DateTime.now().day}'), findsOneWidget);
+    expect(find.textContaining('Today,', findRichText: true), findsOneWidget);
     expect(find.textContaining('Cash', findRichText: true), findsOneWidget);
   });
 

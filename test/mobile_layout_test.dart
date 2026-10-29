@@ -20,6 +20,7 @@ void main() {
 
   for (final (size, scale, mode) in [
     (const Size(390, 844), 1.0, ThemeChoice.light),
+    (const Size(320, 640), 1.0, ThemeChoice.light),
     (const Size(320, 640), 1.6, ThemeChoice.dark),
   ]) {
     testWidgets('four screens remain usable at $size, text scale $scale, $mode', (tester) async {
@@ -58,7 +59,7 @@ void main() {
       expect(find.text('Groceries'), findsOneWidget);
       expect(tester.takeException(), isNull);
 
-      await tester.tap(find.text('Add expense'));
+      await tester.tap(find.byTooltip('Add expense'));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       await tester.enterText(find.widgetWithText(TextFormField, 'Amount'), '250');

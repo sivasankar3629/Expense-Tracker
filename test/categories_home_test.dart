@@ -156,7 +156,7 @@ void main() {
       expect(store.categoryById(food.id)!.monthlyBudget, 1000);
       expect(find.text('₹800 left of ₹1,000'), findsOneWidget);
 
-      await tester.tap(find.text('Add expense'));
+      await tester.tap(find.byTooltip('Add expense'));
       await tester.pumpAndSettle();
       await tester.enterText(find.widgetWithText(TextFormField, 'Amount'), '50');
       await tester.enterText(find.widgetWithText(TextFormField, 'Title'), 'Snacks');

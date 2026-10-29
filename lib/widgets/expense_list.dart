@@ -8,6 +8,7 @@ import '../state/expense_store.dart';
 import '../utils/format.dart';
 import 'currency_scope.dart';
 import 'category_style.dart';
+import 'category_icon.dart';
 import 'kipto_art.dart';
 
 /// Opening, editing and deleting expenses the same way from every screen.
@@ -90,11 +91,13 @@ class ExpenseCard extends StatelessWidget {
     required this.store,
     required this.expenses,
     this.showCategory = true,
+    this.recent = false,
   });
 
   final ExpenseStore store;
   final List<Expense> expenses;
   final bool showCategory;
+  final bool recent;
 
   @override
   Widget build(BuildContext context) {
@@ -115,6 +118,7 @@ class ExpenseCard extends StatelessWidget {
                   account: store.accountById(expenses[i].accountId),
                   category: store.categoryById(expenses[i].categoryId),
                   showCategory: showCategory,
+                  recent: recent,
                 ),
               ),
             ),
@@ -136,13 +140,13 @@ class SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final style = theme.textTheme.titleMedium?.copyWith(
+    final style = theme.textTheme.titleLarge?.copyWith(
       color: theme.colorScheme.onSurface,
       fontWeight: FontWeight.w800,
       letterSpacing: 0.1,
     );
     return Padding(
-      padding: EdgeInsets.fromLTRB(4, 24, 4, action == null ? 12 : 4),
+      padding: EdgeInsets.fromLTRB(4, 20, 4, action == null ? 10 : 2),
       child: Row(
         children: [
           Expanded(child: Text(title, style: style)),
@@ -187,6 +191,7 @@ class ExpenseTile extends StatelessWidget {
     this.account,
     this.category,
     this.showCategory = true,
+    this.recent = false,
   });
 
   final Expense expense;
@@ -195,6 +200,7 @@ class ExpenseTile extends StatelessWidget {
   /// Still tints the date badge when [showCategory] is off.
   final ExpenseCategory? category;
   final bool showCategory;
+  final bool recent;
 
   @override
   Widget build(BuildContext context) {
@@ -202,11 +208,18 @@ class ExpenseTile extends StatelessWidget {
     final muted = theme.colorScheme.onSurfaceVariant;
     final category = showCategory ? this.category : null;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: recent ? 11 : 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _DateBadge(date: expense.dateTime, color: this.category?.color),
+          if (recent)
+            CategoryIcon(
+              icon: this.category?.icon ?? Icons.receipt_long_outlined,
+              color: this.category?.color ?? theme.colorScheme.primary,
+              size: 38,
+            )
+          else
+            _DateBadge(date: expense.dateTime, color: this.category?.color),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -238,7 +251,20 @@ class ExpenseTile extends StatelessWidget {
                     ),
                   ],
                 ),
-                if (account != null || category != null) ...[
+                if (recent) ...[
+                  const SizedBox(height: 4),
+                  Text.rich(
+                    TextSpan(children: [
+                      TextSpan(text: '${_recentDate(expense.dateTime)}, '
+                          '${TimeOfDay.fromDateTime(expense.dateTime).format(context)}'),
+                      if (category case final c?) TextSpan(text: ' · ${c.name}'),
+                      if (account case final a?) TextSpan(text: ' · ${a.nickname}'),
+                    ]),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall?.copyWith(color: muted),
+                  ),
+                ] else if (account != null || category != null) ...[
                   const SizedBox(height: 7),
                   Wrap(
                     spacing: 8,
@@ -290,6 +316,14 @@ class ExpenseTile extends StatelessWidget {
       ),
     );
   }
+}
+
+String _recentDate(DateTime date) {
+  final now = DateTime.now();
+  if (DateUtils.isSameDay(date, now)) return 'Today';
+  final yesterday = DateTime(now.year, now.month, now.day - 1);
+  if (DateUtils.isSameDay(date, yesterday)) return 'Yesterday';
+  return formatShortDate(date);
 }
 
 class _DateBadge extends StatelessWidget {
