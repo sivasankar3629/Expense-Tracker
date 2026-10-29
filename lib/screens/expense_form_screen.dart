@@ -109,9 +109,11 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final amountStyle = theme.textTheme.headlineMedium?.copyWith(
-      fontWeight: FontWeight.w700,
-      color: theme.colorScheme.onSurface,
+    final amountStyle = theme.textTheme.displayMedium?.copyWith(
+      fontSize: 48,
+      fontWeight: FontWeight.w800,
+      letterSpacing: -1.8,
+      color: theme.colorScheme.primary,
     );
     return Scaffold(
       appBar: AppBar(
@@ -126,109 +128,143 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
           const SizedBox(width: 4),
         ],
       ),
-      body: Form(
-        key: _formKey,
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                children: [
-                  // Amount first and large: it's the one field every expense needs.
-                  TextFormField(
-                    controller: _amountController,
-                    // Pop the keyboard up for new expenses only; editing often
-                    // starts with just looking.
-                    autofocus: !_isEditing,
-                    style: amountStyle,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    textInputAction: TextInputAction.next,
-                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
-                    decoration: InputDecoration(
-                      labelText: 'Amount',
-                      prefixText: context.currencyPrefix,
-                      prefixStyle: amountStyle,
-                      contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-                    ),
-                    validator: (value) {
-                      final amount = double.tryParse(value ?? '');
-                      if (amount == null || amount <= 0) return 'Enter a valid amount';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _titleController,
-                    textCapitalization: TextCapitalization.sentences,
-                    textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: 'Title',
-                      prefixIcon: Icon(Icons.edit_outlined),
-                    ),
-                    validator: (value) =>
-                        (value == null || value.trim().isEmpty) ? 'Enter a title' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  CategoryPicker(
-                    store: widget.store,
-                    selectedId: _categoryId,
-                    onChanged: (id) => setState(() => _categoryId = id),
-                  ),
-                  const SizedBox(height: 16),
-                  AccountChips(
-                    store: widget.store,
-                    selected: _account,
-                    onChanged: (account) => setState(() => _account = account),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _PickerField(
-                          label: 'Date',
-                          value: formatDate(_date),
-                          leading: const Icon(Icons.calendar_today_outlined),
-                          onTap: _pickDate,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 640),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                Expanded(
+                  // Keep every FormField mounted while the wrapped chips grow,
+                  // so validation still checks fields scrolled out of view.
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Amount first and large: it's the one field every expense needs.
+                        TextFormField(
+                          controller: _amountController,
+                          // Pop the keyboard up for new expenses only; editing often
+                          // starts with just looking.
+                          autofocus: !_isEditing,
+                          style: amountStyle,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          textInputAction: TextInputAction.next,
+                          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
+                          decoration: InputDecoration(
+                            labelText: 'Amount',
+                            floatingLabelBehavior: FloatingLabelBehavior.always,
+                            hintText: '0',
+                            hintStyle: amountStyle?.copyWith(
+                              color: theme.colorScheme.primary.withValues(alpha: 0.4),
+                            ),
+                            labelStyle: theme.textTheme.labelLarge?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            fillColor: Color.lerp(
+                              theme.colorScheme.surfaceContainerLow,
+                              theme.colorScheme.primary,
+                              0.08,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              borderSide: BorderSide(
+                                color: theme.colorScheme.primary.withValues(alpha: 0.16),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.5),
+                            ),
+                            prefixText: context.currencyPrefix,
+                            prefixStyle: amountStyle,
+                            contentPadding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+                          ),
+                          validator: (value) {
+                            final amount = double.tryParse(value ?? '');
+                            if (amount == null || amount <= 0) return 'Enter a valid amount';
+                            return null;
+                          },
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _PickerField(
-                          label: 'Time',
-                          value: _time.format(context),
-                          leading: const Icon(Icons.schedule_outlined),
-                          onTap: _pickTime,
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _titleController,
+                          textCapitalization: TextCapitalization.sentences,
+                          textInputAction: TextInputAction.next,
+                          decoration: const InputDecoration(
+                            labelText: 'Title',
+                            prefixIcon: Icon(Icons.edit_outlined),
+                          ),
+                          validator: (value) =>
+                              (value == null || value.trim().isEmpty) ? 'Enter a title' : null,
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _notesController,
-                    minLines: 3,
-                    maxLines: 5,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
-                      labelText: 'Notes (optional)',
-                      alignLabelWithHint: true,
+                        const SizedBox(height: 16),
+                        CategoryPicker(
+                          store: widget.store,
+                          selectedId: _categoryId,
+                          onChanged: (id) => setState(() => _categoryId = id),
+                        ),
+                        const SizedBox(height: 16),
+                        AccountChips(
+                          store: widget.store,
+                          selected: _account,
+                          onChanged: (account) => setState(() => _account = account),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _PickerField(
+                                label: 'Date',
+                                value: formatDate(_date),
+                                leading: const Icon(Icons.calendar_today_outlined),
+                                onTap: _pickDate,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _PickerField(
+                                label: 'Time',
+                                value: _time.format(context),
+                                leading: const Icon(Icons.schedule_outlined),
+                                onTap: _pickTime,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _notesController,
+                          minLines: 2,
+                          maxLines: 5,
+                          textCapitalization: TextCapitalization.sentences,
+                          decoration: const InputDecoration(
+                            labelText: 'Notes (optional)',
+                            alignLabelWithHint: true,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                ),
+                // Pinned below the fields so it's always in reach, and rides just
+                // above the keyboard while typing.
+                SafeArea(
+                  top: false,
+                  minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  child: FilledButton.icon(
+                    onPressed: _submit,
+                    icon: const Icon(Icons.check),
+                    label: Text(_isEditing ? 'Save' : 'Add'),
+                    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+                  ),
+                ),
+              ],
             ),
-            // Pinned below the fields so it's always in reach, and rides just
-            // above the keyboard while typing.
-            SafeArea(
-              top: false,
-              minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: FilledButton.icon(
-                onPressed: _submit,
-                icon: const Icon(Icons.check),
-                label: Text(_isEditing ? 'Save' : 'Add'),
-                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

@@ -5,6 +5,7 @@ import '../state/expense_store.dart';
 import '../widgets/budget.dart';
 import '../widgets/category_dialog.dart';
 import '../widgets/category_icon.dart';
+import '../widgets/category_style.dart';
 import '../widgets/expense_list.dart';
 import '../widgets/currency_scope.dart';
 
@@ -102,8 +103,13 @@ class _Header extends StatelessWidget {
     final scheme = theme.colorScheme;
     final category = this.category;
     final budget = category?.monthlyBudget;
-    final color = category?.color ?? scheme.onSurfaceVariant;
+    final color = categoryAccent(category?.color ?? scheme.onSurfaceVariant);
     return Card(
+      color: categorySurface(context, color),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: BorderSide(color: color.withValues(alpha: 0.25)),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -111,26 +117,31 @@ class _Header extends StatelessWidget {
           children: [
             Row(
               children: [
-                CategoryIcon(
-                  icon: category?.icon ?? Icons.inbox_outlined,
-                  color: color,
-                  size: 52,
-                ),
-                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Spent $period',
-                        style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: categoryInk(context, color), fontWeight: FontWeight.w600,
+                        ),
                       ),
+                      const SizedBox(height: 8),
                       Text(
                         context.formatAmount(spent),
-                        style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
+                        style: theme.textTheme.displaySmall?.copyWith(
+                          fontWeight: FontWeight.w800, letterSpacing: -1.2,
+                        ),
                       ),
                     ],
                   ),
+                ),
+                const SizedBox(width: 16),
+                CategoryIcon(
+                  icon: category?.icon ?? Icons.inbox_outlined,
+                  color: color,
+                  size: 64,
                 ),
               ],
             ),
@@ -141,9 +152,15 @@ class _Header extends StatelessWidget {
                   spent: spent,
                   budget: budget,
                   color: color,
-                  action: TextButton(
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
                     onPressed: () => showBudgetDialog(context, store: store, category: category),
-                    child: const Text('Edit budget'),
+                    icon: const Icon(Icons.tune_rounded, size: 16),
+                    label: const Text('Edit budget'),
+                    style: TextButton.styleFrom(foregroundColor: categoryInk(context, color)),
                   ),
                 ),
               ] else

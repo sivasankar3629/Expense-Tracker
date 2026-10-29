@@ -43,31 +43,29 @@ class AccountChips extends StatelessWidget {
                 'Paid from',
                 style: theme.textTheme.labelLarge?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              clipBehavior: Clip.none,
-              child: Row(
-                children: [
-                  for (final account in accounts) ...[
-                    ChoiceChip(
-                      avatar: Icon(account.type.icon, size: 18),
-                      label: Text(account.nickname),
-                      selected: account.id == selected.id,
-                      showCheckmark: false,
-                      onSelected: (_) => onChanged(account),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  ActionChip(
-                    avatar: const Icon(Icons.add, size: 18),
-                    label: const Text('New account'),
-                    onPressed: () => _create(context),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                for (final account in accounts) ...[
+                  ChoiceChip(
+                    avatar: Icon(account.type.icon, size: 18),
+                    label: Text(account.nickname),
+                    selected: account.id == selected.id,
+                    showCheckmark: false,
+                    onSelected: (_) => onChanged(account),
                   ),
                 ],
-              ),
+                ActionChip(
+                  avatar: const Icon(Icons.add, size: 18),
+                  label: const Text('New account'),
+                  onPressed: () => _create(context),
+                ),
+              ],
             ),
           ],
         );

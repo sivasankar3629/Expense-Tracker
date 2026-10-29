@@ -29,3 +29,7 @@ flutter:
   assets:
     - assets/art/wallet.png
     - assets/art/receipt.png
+  fonts:
+    - family: PlusJakartaSans
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans.ttf

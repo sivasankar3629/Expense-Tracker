@@ -17,7 +17,12 @@ ThemeData buildTheme(Brightness brightness) {
     outlineVariant: dark ? const Color(0xFF35463A) : const Color(0xFFE1E5DA),
   );
   final radius = BorderRadius.circular(16);
-  final base = ThemeData(colorScheme: scheme, brightness: brightness);
+  final base = ThemeData(
+    useMaterial3: true,
+    colorScheme: scheme,
+    brightness: brightness,
+    fontFamily: 'PlusJakartaSans',
+  );
 
   return base.copyWith(
     scaffoldBackgroundColor: scheme.surface,
@@ -27,7 +32,8 @@ ThemeData buildTheme(Brightness brightness) {
         letterSpacing: -0.5,
       ),
       titleMedium: base.textTheme.titleMedium?.copyWith(letterSpacing: -0.2),
-      bodyMedium: base.textTheme.bodyMedium?.copyWith(height: 1.45),
+      headlineMedium: base.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
+      bodyMedium: base.textTheme.bodyMedium?.copyWith(height: 1.4),
     ),
     appBarTheme: AppBarTheme(
       backgroundColor: scheme.surface,
@@ -36,47 +42,61 @@ ThemeData buildTheme(Brightness brightness) {
       scrolledUnderElevation: 0,
       elevation: 0,
       titleTextStyle: TextStyle(
-        fontSize: 24,
-        fontWeight: FontWeight.w700,
+        fontFamily: 'PlusJakartaSans',
+        fontSize: 26,
+        fontWeight: FontWeight.w800,
         letterSpacing: -0.8,
         color: scheme.onSurface,
       ),
     ),
-    // Filled fields with no outline; the label stays inside the box and focus
-    // shows as a tint instead of a border.
+    // Warm filled fields with a quiet outline and a clear focus state.
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: WidgetStateColor.resolveWith(
         (states) => states.contains(WidgetState.focused)
-            ? scheme.primaryContainer.withValues(alpha: 0.45)
-            : scheme.surfaceContainerHighest.withValues(alpha: 0.6),
+            ? Color.lerp(scheme.surfaceContainerLow, scheme.primary, 0.06)!
+            : scheme.surfaceContainerLow,
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      border: UnderlineInputBorder(borderRadius: radius, borderSide: BorderSide.none),
+      border: OutlineInputBorder(borderRadius: radius, borderSide: BorderSide.none),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: BorderSide(color: scheme.outlineVariant),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: radius,
+        borderSide: BorderSide(color: scheme.primary, width: 1.5),
+      ),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         minimumSize: const Size(48, 48),
-        shape: RoundedRectangleBorder(borderRadius: radius),
-        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        shape: const StadiumBorder(),
+        textStyle: const TextStyle(
+          fontFamily: 'PlusJakartaSans', fontSize: 16, fontWeight: FontWeight.w700,
+        ),
       ),
     ),
     floatingActionButtonTheme: FloatingActionButtonThemeData(
       backgroundColor: scheme.primary,
       foregroundColor: scheme.onPrimary,
-      elevation: 2,
+      elevation: 3,
       highlightElevation: 4,
-      extendedTextStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      extendedTextStyle: const TextStyle(
+        fontFamily: 'PlusJakartaSans', fontSize: 14, fontWeight: FontWeight.w800,
+      ),
+      shape: const StadiumBorder(),
     ),
     cardTheme: CardThemeData(
-      elevation: 0,
+      elevation: 1,
+      shadowColor: const Color(0x14285C46),
+      surfaceTintColor: Colors.transparent,
       margin: EdgeInsets.zero,
       color: scheme.surfaceContainerLow,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(22),
-        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.7)),
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
       ),
     ),
     navigationBarTheme: NavigationBarThemeData(
@@ -84,10 +104,22 @@ ThemeData buildTheme(Brightness brightness) {
       indicatorColor: dark ? const Color(0xFF354D3C) : const Color(0xFFE1ECD9),
       elevation: 0,
       labelTextStyle: WidgetStateProperty.resolveWith((states) => TextStyle(
+        fontFamily: 'PlusJakartaSans',
         fontSize: 12,
         fontWeight: states.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w500,
         color: states.contains(WidgetState.selected) ? scheme.primary : scheme.onSurfaceVariant,
       )),
+    ),
+    chipTheme: base.chipTheme.copyWith(
+      backgroundColor: scheme.surfaceContainerLow,
+      selectedColor: dark ? const Color(0xFF354D3C) : const Color(0xFFDDEBD4),
+      side: BorderSide(color: scheme.outlineVariant),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      labelStyle: TextStyle(
+        fontFamily: 'PlusJakartaSans', fontSize: 13,
+        fontWeight: FontWeight.w700, color: scheme.onSurface,
+      ),
     ),
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: scheme.surfaceContainerLow,

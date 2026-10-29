@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import '../models/category.dart';
 import '../state/expense_store.dart';
 import 'category_dialog.dart';
+import 'category_style.dart';
 
-/// A scrollable row of category chips with "New category" at the end.
+/// Wrapping category chips with "New category" at the end.
 /// Tapping the selected chip again clears it, since a category is optional.
 class CategoryPicker extends StatelessWidget {
   const CategoryPicker({
@@ -46,29 +47,27 @@ class CategoryPicker extends StatelessWidget {
                 'Category',
                 style: theme.textTheme.labelLarge?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              clipBehavior: Clip.none,
-              child: Row(
-                children: [
-                  for (final category in categories) ...[
-                    _CategoryChip(
-                      category: category,
-                      selected: category.id == selectedId,
-                      onTap: () => onChanged(category.id == selectedId ? null : category.id),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  ActionChip(
-                    avatar: const Icon(Icons.add, size: 18),
-                    label: Text(categories.isEmpty ? 'Create a category' : 'New category'),
-                    onPressed: () => _create(context),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                for (final category in categories) ...[
+                  _CategoryChip(
+                    category: category,
+                    selected: category.id == selectedId,
+                    onTap: () => onChanged(category.id == selectedId ? null : category.id),
                   ),
                 ],
-              ),
+                ActionChip(
+                  avatar: const Icon(Icons.add, size: 18),
+                  label: Text(categories.isEmpty ? 'Create a category' : 'New category'),
+                  onPressed: () => _create(context),
+                ),
+              ],
             ),
           ],
         );
@@ -86,14 +85,18 @@ class _CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = category.color;
+    final color = categoryAccent(category.color);
     return FilterChip(
-      avatar: Icon(category.icon, size: 18, color: color),
+      avatar: Icon(category.icon, size: 18, color: categoryInk(context, color)),
       label: Text(category.name),
       selected: selected,
       showCheckmark: false,
-      selectedColor: color.withValues(alpha: 0.2),
-      side: BorderSide(color: selected ? color : Theme.of(context).colorScheme.outlineVariant),
+      backgroundColor: categorySurface(context, color),
+      selectedColor: Color.lerp(categorySurface(context, color), color, 0.2),
+      labelStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
+        color: categoryInk(context, color), fontWeight: FontWeight.w700,
+      ),
+      side: BorderSide(color: selected ? categoryInk(context, color) : color.withValues(alpha: 0.25), width: selected ? 1.5 : 1),
       onSelected: (_) => onTap(),
     );
   }

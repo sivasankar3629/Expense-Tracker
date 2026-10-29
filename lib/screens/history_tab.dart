@@ -198,11 +198,19 @@ class _HistoryTabState extends State<HistoryTab> {
                           onPressed: _clearSearch,
                         ),
                   filled: true,
-                  fillColor: theme.colorScheme.surfaceContainerHigh,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  fillColor: theme.colorScheme.surfaceContainerLow,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 18),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(28),
-                    borderSide: BorderSide.none,
+                    borderRadius: BorderRadius.circular(20),
+                    borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.5),
                   ),
                 ),
               ),
@@ -235,12 +243,13 @@ class _HistoryTabState extends State<HistoryTab> {
             ),
             if (shown.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.fromLTRB(4, 14, 4, 0),
+                padding: const EdgeInsets.fromLTRB(4, 18, 4, 0),
                 child: Text(
                   '${shown.length == 1 ? '1 expense' : '${shown.length} expenses'}'
                   ' · ${context.formatAmount(totalOf(shown))}',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),

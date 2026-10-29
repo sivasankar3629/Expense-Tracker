@@ -45,11 +45,11 @@ class _AppShellState extends State<AppShell> {
             if (_tab == 0) ...[
               ExcludeSemantics(
                 child: Container(
-                  width: 34,
-                  height: 34,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.primary,
-                    borderRadius: BorderRadius.circular(11),
+                    borderRadius: BorderRadius.circular(13),
                   ),
                   child: Icon(
                     Icons.account_balance_wallet_rounded,

@@ -59,6 +59,8 @@ void main() {
     await tester.pumpWidget(ExpenseTrackerApp(store: store));
     await openAddExpense(tester);
 
+    await tester.ensureVisible(find.text('New account'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('New account'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Credit card'));

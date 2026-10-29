@@ -5,6 +5,7 @@ import '../models/category.dart';
 import '../state/expense_store.dart';
 import '../utils/format.dart';
 import 'currency_scope.dart';
+import 'category_style.dart';
 
 /// How close spending is to a budget.
 enum BudgetLevel {
@@ -83,11 +84,13 @@ class BudgetProgress extends StatelessWidget {
             Expanded(
               child: Text(
                 caption,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                maxLines: compact ? 1 : null,
+                overflow: compact ? TextOverflow.ellipsis : TextOverflow.visible,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: level == BudgetLevel.ok ? theme.colorScheme.onSurfaceVariant : barColor,
-                  fontWeight: level == BudgetLevel.ok ? null : FontWeight.w600,
+                  color: level == BudgetLevel.ok
+                      ? theme.colorScheme.onSurfaceVariant
+                      : categoryInk(context, barColor),
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),

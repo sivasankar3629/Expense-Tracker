@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/category.dart';
 import 'budget.dart';
 import 'category_icon.dart';
+import 'category_style.dart';
 import 'currency_scope.dart';
 
 /// A home-screen tile: this month's spending in a category, with its budget.
@@ -51,10 +52,10 @@ class CategoryCard extends StatelessWidget {
     final budget = this.budget;
     final over = budget != null && BudgetLevel.of(spent, budget) == BudgetLevel.over;
     return Card(
-      color: Color.lerp(theme.colorScheme.surfaceContainerLow, color, 0.035),
+      color: categorySurface(context, color),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(22),
-        side: BorderSide(color: Color.lerp(theme.colorScheme.outlineVariant, color, 0.25)!),
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: categoryAccent(color).withValues(alpha: 0.18)),
       ),
       child: InkWell(
         onTap: onTap,
@@ -65,7 +66,7 @@ class CategoryCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  CategoryIcon(icon: icon, color: color, size: 36),
+                  CategoryIcon(icon: icon, color: color, size: 40),
                   const Spacer(),
                   if (over)
                     Icon(Icons.warning_amber_rounded, size: 20, color: theme.colorScheme.error),
@@ -76,16 +77,19 @@ class CategoryCard extends StatelessWidget {
                 name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
               ),
               Text(
                 context.formatAmount(spent),
                 maxLines: 1,
-                style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800, letterSpacing: -0.6,
+                ),
               ),
               const SizedBox(height: 8),
               if (budget != null)
-                BudgetProgress(spent: spent, budget: budget, color: color, compact: true)
+                BudgetProgress(spent: spent, budget: budget, color: categoryAccent(color), compact: true)
               else ...[
                 // Same height as a budget bar and its gap, so tiles line up.
                 const SizedBox(height: 12),
@@ -154,10 +158,10 @@ class CategoryGrid extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       padding: EdgeInsets.zero,
       gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 240,
+        maxCrossAxisExtent: MediaQuery.textScalerOf(context).scale(14) > 18 ? 480 : 240,
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
-        mainAxisExtent: MediaQuery.textScalerOf(context).scale(162),
+        mainAxisExtent: MediaQuery.textScalerOf(context).scale(176),
       ),
       children: children,
     );

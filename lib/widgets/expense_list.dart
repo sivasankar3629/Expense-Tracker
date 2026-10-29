@@ -7,6 +7,7 @@ import '../screens/expense_form_screen.dart';
 import '../state/expense_store.dart';
 import '../utils/format.dart';
 import 'currency_scope.dart';
+import 'category_style.dart';
 import 'kipto_art.dart';
 
 /// Opening, editing and deleting expenses the same way from every screen.
@@ -135,13 +136,13 @@ class SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final style = theme.textTheme.titleSmall?.copyWith(
+    final style = theme.textTheme.titleMedium?.copyWith(
       color: theme.colorScheme.onSurface,
-      fontWeight: FontWeight.w700,
+      fontWeight: FontWeight.w800,
       letterSpacing: 0.1,
     );
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, 24, action == null ? 16 : 4, action == null ? 10 : 2),
+      padding: EdgeInsets.fromLTRB(4, 24, 4, action == null ? 12 : 4),
       child: Row(
         children: [
           Expanded(child: Text(title, style: style)),
@@ -201,56 +202,89 @@ class ExpenseTile extends StatelessWidget {
     final muted = theme.colorScheme.onSurfaceVariant;
     final category = showCategory ? this.category : null;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _DateBadge(date: expense.dateTime, color: this.category?.color),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  expense.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: Text(
+                        expense.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      flex: 2,
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          context.formatAmount(expense.amount),
+                          textAlign: TextAlign.right,
+                          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 if (account != null || category != null) ...[
-                  const SizedBox(height: 2),
-                  Text.rich(
-                    TextSpan(children: [
-                      if (category case final c?) ...[
-                        WidgetSpan(
-                          alignment: PlaceholderAlignment.middle,
-                          child: Icon(c.icon, size: 14, color: c.color),
+                  const SizedBox(height: 7),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (category case final c?)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: categorySurface(context, c.color),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text.rich(
+                            TextSpan(children: [
+                              WidgetSpan(
+                                alignment: PlaceholderAlignment.middle,
+                                child: Icon(c.icon, size: 12, color: categoryInk(context, c.color)),
+                              ),
+                              TextSpan(text: ' ${c.name}'),
+                            ]),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: categoryInk(context, c.color), fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
-                        TextSpan(
-                          text: ' ${c.name}',
-                          style: TextStyle(color: c.color, fontWeight: FontWeight.w500),
+                      if (account case final a?)
+                        Text.rich(
+                          TextSpan(children: [
+                            WidgetSpan(
+                              alignment: PlaceholderAlignment.middle,
+                              child: Icon(a.type.icon, size: 13, color: muted),
+                            ),
+                            TextSpan(text: ' ${a.nickname}'),
+                          ]),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelSmall?.copyWith(color: muted),
                         ),
-                        if (account != null) const TextSpan(text: '  ·  '),
-                      ],
-                      if (account case final a?) ...[
-                        WidgetSpan(
-                          alignment: PlaceholderAlignment.middle,
-                          child: Icon(a.type.icon, size: 14, color: muted),
-                        ),
-                        TextSpan(text: ' ${a.nickname}'),
-                      ],
-                    ]),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall?.copyWith(color: muted),
+                    ],
                   ),
                 ],
               ],
             ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            context.formatAmount(expense.amount),
-            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
         ],
       ),
@@ -270,13 +304,14 @@ class _DateBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tint = this.color;
-    final color = tint ?? theme.colorScheme.onPrimaryContainer;
+    final color = tint == null ? theme.colorScheme.primary : categoryInk(context, tint);
     return Container(
       width: 44,
       padding: const EdgeInsets.symmetric(vertical: 6),
       decoration: BoxDecoration(
-        color: tint?.withValues(alpha: 0.16) ??
-            theme.colorScheme.primaryContainer.withValues(alpha: 0.7),
+        color: tint == null
+            ? theme.colorScheme.primaryContainer.withValues(alpha: 0.7)
+            : categorySurface(context, tint),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -290,7 +325,7 @@ class _DateBadge extends StatelessWidget {
             ),
           ),
           Text(
-            formatWeekday(date),
+            formatWeekday(date).toUpperCase(),
             style: theme.textTheme.labelSmall?.copyWith(
               color: color.withValues(alpha: 0.75),
               letterSpacing: 0.6,

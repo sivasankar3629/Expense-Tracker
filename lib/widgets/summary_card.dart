@@ -25,18 +25,24 @@ class SummaryCard extends StatelessWidget {
     const foreground = Color(0xFFFFFDF4);
     const muted = Color(0xFFD4E4CD);
     return LayoutBuilder(builder: (context, constraints) {
-      final showArt = constraints.maxWidth >= 300 &&
+      final showArt = constraints.maxWidth >= 340 &&
           MediaQuery.textScalerOf(context).scale(16) <= 20;
       return Container(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+        padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF234D3B), Color(0xFF123A2C)],
+            colors: [Color(0xFF285C46), Color(0xFF194431)],
           ),
-          border: Border.all(color: const Color(0xFF3B6450)),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF285C46).withValues(alpha: 0.14),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
         clipBehavior: Clip.antiAlias,
         child: Stack(
@@ -60,25 +66,28 @@ class SummaryCard extends StatelessWidget {
             if (showArt)
               const Positioned(
                 right: -4,
-                top: -8,
-                child: IgnorePointer(child: KiptoArt.wallet(size: 112)),
+                top: -4,
+                child: IgnorePointer(child: KiptoArt.wallet(size: 104)),
               ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: EdgeInsets.only(right: showArt ? 104 : 0),
+                  padding: EdgeInsets.only(right: showArt ? 96 : 0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Spent $period', style: theme.textTheme.bodyMedium?.copyWith(color: muted)),
+                      Text('Spent $period', style: theme.textTheme.bodyMedium?.copyWith(
+                        color: muted, fontWeight: FontWeight.w600,
+                      )),
                       const SizedBox(height: 6),
                       Text(
                         context.formatAmount(total),
                         style: theme.textTheme.displaySmall?.copyWith(
                           color: foreground,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -1.2,
+                          fontSize: 40,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -1.5,
                         ),
                       ),
                     ],

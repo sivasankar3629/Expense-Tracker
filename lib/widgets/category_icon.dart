@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/category.dart';
+import 'category_style.dart';
 
 /// A category's icon on a soft tint of its colour.
 class CategoryIcon extends StatelessWidget {
@@ -24,10 +25,10 @@ class CategoryIcon extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.18),
+        color: categoryAccent(color).withValues(alpha: 0.22),
         borderRadius: BorderRadius.circular(size * 0.3),
       ),
-      child: Icon(icon, color: color, size: size * 0.55),
+      child: Icon(icon, color: categoryInk(context, color), size: size * 0.55),
     );
   }
 }
