@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Long-press the app icon for "Add expense". It opens the app the same way
+     the widget's + button does, so the app handles both alike. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_add"
+        android:shortcutId="add_expense"
+        android:shortcutLongLabel="@string/shortcut_add_long"
+        android:shortcutShortLabel="@string/shortcut_add_short">
+        <intent
+            android:action="es.antonborri.home_widget.action.LAUNCH"
+            android:data="kipto://add"
+            android:targetClass="com.kipto.app.MainActivity"
+            android:targetPackage="com.kipto.app" />
+    </shortcut>
+</shortcuts>

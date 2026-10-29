@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../cloud/cloud_sync.dart';
@@ -11,7 +13,13 @@ import 'settings_screen.dart';
 
 /// The app's frame: Home and History tabs, a shared top bar and Add button.
 class AppShell extends StatefulWidget {
-  const AppShell({super.key, required this.store, this.cloudSync, this.versionLabel});
+  const AppShell({
+    super.key,
+    required this.store,
+    this.cloudSync,
+    this.versionLabel,
+    this.addRequests,
+  });
 
   final ExpenseStore store;
 
@@ -21,14 +29,37 @@ class AppShell extends StatefulWidget {
   /// Shown at the bottom of Settings so it's easy to tell which build is installed.
   final String? versionLabel;
 
+  /// Requests from outside the app (the home-screen widget) to add an expense.
+  final Stream<void>? addRequests;
+
   @override
   State<AppShell> createState() => _AppShellState();
 }
 
 class _AppShellState extends State<AppShell> {
   int _tab = 0;
+  StreamSubscription<void>? _addRequests;
 
   ExpenseStore get _store => widget.store;
+
+  @override
+  void initState() {
+    super.initState();
+    // Only once the first frame is up, so there's a navigator to open the form
+    // on; a request made while launching waits in the stream until then.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _addRequests = widget.addRequests?.listen((_) {
+        if (mounted) ExpenseActions.add(context, _store);
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _addRequests?.cancel();
+    super.dispose();
+  }
 
   void _push(Widget screen) {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));

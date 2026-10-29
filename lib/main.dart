@@ -12,6 +12,7 @@ import 'data/expense_storage.dart';
 import 'data/sqlite_storage.dart';
 import 'firebase_config.dart';
 import 'models/preferences.dart';
+import 'platform/home_screen_widget.dart';
 import 'screens/app_shell.dart';
 import 'state/expense_store.dart';
 import 'theme.dart';
@@ -23,10 +24,13 @@ Future<void> main() async {
   final storage = SyncedStorage(kIsWeb ? InMemoryStorage() : await SqliteStorage.open());
   final store = await ExpenseStore.open(storage);
   final info = await PackageInfo.fromPlatform();
+  final homeWidget = HomeScreenWidget.isSupported ? HomeScreenWidget(store) : null;
+  await homeWidget?.start();
   runApp(ExpenseTrackerApp(
     store: store,
     cloudSync: await _startCloudSync(storage, store),
     versionLabel: 'Version ${info.version} (build ${info.buildNumber})',
+    addRequests: homeWidget?.addRequests,
   ));
 }
 
@@ -56,10 +60,14 @@ class ExpenseTrackerApp extends StatelessWidget {
     required this.store,
     this.cloudSync,
     this.versionLabel,
+    this.addRequests,
   });
 
   final ExpenseStore store;
   final CloudSync? cloudSync;
+
+  /// Taps on the home-screen widget's + button; each opens the add form.
+  final Stream<void>? addRequests;
 
   /// e.g. "Version 0.1.0 (build 7)"; shown in Settings.
   final String? versionLabel;
@@ -80,7 +88,12 @@ class ExpenseTrackerApp extends StatelessWidget {
         },
         // Above the navigator, so every screen and dialog sees the currency.
         builder: (context, child) => CurrencyScope(currency: store.currency, child: child!),
-        home: AppShell(store: store, cloudSync: cloudSync, versionLabel: versionLabel),
+        home: AppShell(
+          store: store,
+          cloudSync: cloudSync,
+          versionLabel: versionLabel,
+          addRequests: addRequests,
+        ),
       ),
     );
   }

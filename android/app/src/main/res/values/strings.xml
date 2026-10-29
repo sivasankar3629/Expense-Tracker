@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_description">This month\'s spending, with a button to add an expense</string>
+    <string name="widget_label_default">Spent this month</string>
+    <string name="widget_total_default">Open Kipto</string>
+    <string name="widget_add">Add expense</string>
+    <string name="shortcut_add_short">Add expense</string>
+    <string name="shortcut_add_long">Add an expense</string>
+</resources>
