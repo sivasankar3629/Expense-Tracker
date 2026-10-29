@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Scaled into the middle, inside the area every launcher's mask keeps. -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.8"
+        android:scaleY="0.8"
+        android:translateX="-1.4"
+        android:translateY="0.6">
+        <!-- A receipt, its lines cut out, with a notch for the coin. -->
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:fillType="evenOdd"
+            android:pathData="M38,27 H62 A5,5 0 0 1 67,32 V51.33 A15.7,15.7 0 0 0 53.9,77 L50.41,73 L46.93,77 L43.45,73 L39.97,77 L36.48,73 L33,77 V32 A5,5 0 0 1 38,27 Z M42.1,36 H57.9 A2.1,2.1 0 0 1 57.9,40.2 H42.1 A2.1,2.1 0 0 1 42.1,36 Z M42.1,45 H52.9 A2.1,2.1 0 0 1 52.9,49.2 H42.1 A2.1,2.1 0 0 1 42.1,45 Z M42.1,54 H48.9 A2.1,2.1 0 0 1 48.9,58.2 H42.1 A2.1,2.1 0 0 1 42.1,54 Z" />
+        <path
+            android:fillColor="#FFFBBF24"
+            android:pathData="M53.5,67 A12.5,12.5 0 1 0 78.5,67 A12.5,12.5 0 1 0 53.5,67 Z" />
+        <path
+            android:fillColor="#FFF59E0B"
+            android:pathData="M57.5,67 A8.5,8.5 0 1 0 74.5,67 A8.5,8.5 0 1 0 57.5,67 Z" />
+    </group>
+</vector>
