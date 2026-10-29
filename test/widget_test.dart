@@ -19,6 +19,15 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// Recent expenses sit below the summary and categories, so scroll the
+  /// row into view before touching it.
+  Future<Finder> scrollTo(WidgetTester tester, String title) async {
+    final row = find.text(title);
+    await tester.ensureVisible(row);
+    await tester.pumpAndSettle();
+    return row;
+  }
+
   testWidgets('adding an expense shows it on the home list', (tester) async {
     await tester.pumpWidget(ExpenseTrackerApp(store: ExpenseStore()));
     expect(find.text('No expenses yet'), findsOneWidget);
@@ -73,7 +82,7 @@ void main() {
     await fillAndSubmit(tester, 'Tea', '12');
     final originalId = store.expenses.single.id;
 
-    await tester.tap(find.text('Tea'));
+    await tester.tap(await scrollTo(tester, 'Tea'));
     await tester.pumpAndSettle();
     expect(find.text('Edit expense'), findsOneWidget);
     expect(find.widgetWithText(TextFormField, '12'), findsOneWidget);
@@ -95,7 +104,7 @@ void main() {
     await openAddExpense(tester);
     await fillAndSubmit(tester, 'Tea', '12');
 
-    await tester.drag(find.text('Tea'), const Offset(-600, 0));
+    await tester.drag(await scrollTo(tester, 'Tea'), const Offset(-600, 0));
     await tester.pumpAndSettle();
 
     expect(store.expenses, isEmpty);
@@ -115,7 +124,7 @@ void main() {
     await openAddExpense(tester);
     await fillAndSubmit(tester, 'Tea', '12');
 
-    await tester.tap(find.text('Tea'));
+    await tester.tap(await scrollTo(tester, 'Tea'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Delete'));
     await tester.pumpAndSettle();
