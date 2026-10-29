@@ -7,6 +7,7 @@ import '../screens/expense_form_screen.dart';
 import '../state/expense_store.dart';
 import '../utils/format.dart';
 import 'currency_scope.dart';
+import 'kipto_art.dart';
 
 /// Opening, editing and deleting expenses the same way from every screen.
 class ExpenseActions {
@@ -135,8 +136,9 @@ class SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final style = theme.textTheme.titleSmall?.copyWith(
-      color: theme.colorScheme.onSurfaceVariant,
-      fontWeight: FontWeight.w600,
+      color: theme.colorScheme.onSurface,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.1,
     );
     return Padding(
       padding: EdgeInsets.fromLTRB(16, 24, action == null ? 16 : 4, action == null ? 10 : 2),
@@ -323,15 +325,18 @@ class EmptyMessage extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
       child: Column(
         children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: scheme.primaryContainer.withValues(alpha: 0.7),
-              shape: BoxShape.circle,
+          if (icon == Icons.receipt_long_outlined)
+            const KiptoArt.receipt(size: 80)
+          else
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer.withValues(alpha: 0.7),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 36, color: scheme.onPrimaryContainer),
             ),
-            child: Icon(icon, size: 36, color: scheme.onPrimaryContainer),
-          ),
           const SizedBox(height: 18),
           Text(
             title,

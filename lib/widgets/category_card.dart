@@ -51,6 +51,11 @@ class CategoryCard extends StatelessWidget {
     final budget = this.budget;
     final over = budget != null && BudgetLevel.of(spent, budget) == BudgetLevel.over;
     return Card(
+      color: Color.lerp(theme.colorScheme.surfaceContainerLow, color, 0.035),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
+        side: BorderSide(color: Color.lerp(theme.colorScheme.outlineVariant, color, 0.25)!),
+      ),
       child: InkWell(
         onTap: onTap,
         child: Padding(
@@ -112,8 +117,8 @@ class NewCategoryCard extends StatelessWidget {
     return Card(
       color: Colors.transparent,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: scheme.outlineVariant, width: 1.5),
+        borderRadius: BorderRadius.circular(22),
+        side: BorderSide(color: scheme.outlineVariant),
       ),
       child: InkWell(
         onTap: onTap,

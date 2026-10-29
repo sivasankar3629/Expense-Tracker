@@ -39,7 +39,30 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_tab == 0 ? 'Kipto' : 'History'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_tab == 0) ...[
+              ExcludeSemantics(
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary,
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: Icon(
+                    Icons.account_balance_wallet_rounded,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.onPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+            ],
+            Flexible(child: Text(_tab == 0 ? 'Kipto' : 'History')),
+          ],
+        ),
         actions: [
           if (widget.cloudSync case final sync?)
             ListenableBuilder(
@@ -60,12 +83,17 @@ class _AppShellState extends State<AppShell> {
         ],
       ),
       // Keeps each tab's scroll position and History's filters when switching.
-      body: IndexedStack(
-        index: _tab,
-        children: [
-          OverviewTab(store: _store, onSeeAll: () => setState(() => _tab = 1)),
-          HistoryTab(store: _store),
-        ],
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 960),
+          child: IndexedStack(
+            index: _tab,
+            children: [
+              OverviewTab(store: _store, onSeeAll: () => setState(() => _tab = 1)),
+              HistoryTab(store: _store),
+            ],
+          ),
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => ExpenseActions.add(context, _store),
