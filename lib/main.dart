@@ -1,7 +1,11 @@
+import 'dart:async';
+import 'dart:ui' show DartPluginRegistrant;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import 'cloud/cloud_sync.dart';
@@ -15,7 +19,9 @@ import 'models/preferences.dart';
 import 'platform/home_screen_widget.dart';
 import 'screens/app_shell.dart';
 import 'sms/sms_detection.dart';
+import 'sms/background.dart';
 import 'sms/sms_source.dart';
+import 'sms/spend_notifications.dart';
 import 'state/expense_store.dart';
 import 'theme.dart';
 import 'widgets/currency_scope.dart';
@@ -26,14 +32,29 @@ Future<void> main() async {
   final sqlite = kIsWeb ? null : await SqliteStorage.open();
   final storage = SyncedStorage(sqlite ?? InMemoryStorage());
   final store = await ExpenseStore.open(storage);
-  final detection = sqlite != null && AndroidSmsSource.isSupported
-      ? (SmsDetection(
-          store: store,
-          source: AndroidSmsSource(),
-          storage: sqlite,
-          data: await sqlite.loadDetection(),
-        )..startAutoScan())
-      : null;
+  // Taps on spend notifications: each opens that spend's add form. Kept
+  // until the app is ready, like a tap that launched it.
+  final openSpend = StreamController<String>();
+  SmsDetection? detection;
+  if (sqlite != null && AndroidSmsSource.isSupported) {
+    await LocalSpendNotifier.initialize(onResponse: (response) {
+      final smsId = response.payload;
+      if (smsId == null) return;
+      if (response.actionId == ignoreAction) {
+        if (detection?.pendingById(smsId) case final t?) detection?.ignore(t);
+      } else {
+        openSpend.add(smsId);
+      }
+    });
+    detection = SmsDetection(
+      store: store,
+      source: AndroidSmsSource(),
+      storage: sqlite,
+      notifier: LocalSpendNotifier(),
+      data: await sqlite.loadDetection(),
+    )..startAutoScan();
+    if (await LocalSpendNotifier.launchedFor() case final smsId?) openSpend.add(smsId);
+  }
   final info = await PackageInfo.fromPlatform();
   final homeWidget = HomeScreenWidget.isSupported ? HomeScreenWidget(store) : null;
   await homeWidget?.start();
@@ -43,7 +64,25 @@ Future<void> main() async {
     versionLabel: 'Version ${info.version} (build ${info.buildNumber})',
     addRequests: homeWidget?.addRequests,
     detection: detection,
+    openSpendRequests: detection == null ? null : openSpend.stream,
   ));
+}
+
+/// Run by SmsReceiver.kt for an SMS that arrives while the app isn't running.
+@pragma('vm:entry-point')
+Future<void> smsReceivedInBackground() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Only main() gets plugins wired up on the Dart side by itself.
+  DartPluginRegistrant.ensureInitialized();
+  const channel = MethodChannel('kipto/sms_background');
+  try {
+    final sms = await channel.invokeMapMethod<Object?, Object?>('ready');
+    if (sms != null) await handleSmsInBackground(AndroidSmsSource.smsFromMap(sms));
+  } catch (e, stack) {
+    debugPrint('Background SMS failed: $e\n$stack');
+  } finally {
+    await channel.invokeMethod<void>('done');
+  }
 }
 
 /// Null on web (the preview build) or if Firebase fails to start; the app
@@ -74,9 +113,13 @@ class ExpenseTrackerApp extends StatelessWidget {
     this.versionLabel,
     this.addRequests,
     this.detection,
+    this.openSpendRequests,
   });
 
   final ExpenseStore store;
+
+  /// Spend notifications tapped: the SMS id whose add form to open.
+  final Stream<String>? openSpendRequests;
 
   /// Null where SMS can't be read (web, tests); the feature then stays hidden.
   final SmsDetection? detection;
@@ -110,6 +153,7 @@ class ExpenseTrackerApp extends StatelessWidget {
           versionLabel: versionLabel,
           addRequests: addRequests,
           detection: detection,
+          openSpendRequests: openSpendRequests,
         ),
       ),
     );

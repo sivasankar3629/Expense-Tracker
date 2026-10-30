@@ -8,6 +8,7 @@ class DetectionData {
     this.scannedUntil,
     this.pending = const [],
     this.accountHints = const {},
+    this.handledIds = const {},
   });
 
   final bool enabled;
@@ -21,6 +22,10 @@ class DetectionData {
   /// Account or card ending → the account the user chose for it, e.g.
   /// "5678" → their HDFC card's id.
   final Map<String, String> accountHints;
+
+  /// SMS already added or ignored, so they don't come back. Kept for a
+  /// while past the furthest any scan looks back.
+  final Set<String> handledIds;
 }
 
 abstract interface class DetectionStorage {
@@ -30,6 +35,7 @@ abstract interface class DetectionStorage {
   Future<void> addDetected(List<DetectedTransaction> transactions);
   Future<void> removeDetected(List<String> smsIds);
   Future<void> saveAccountHint(String hint, String accountId);
+  Future<void> markHandled(List<String> smsIds);
 }
 
 /// Keeps nothing; for tests and the web preview.
@@ -51,4 +57,7 @@ class InMemoryDetectionStorage implements DetectionStorage {
 
   @override
   Future<void> saveAccountHint(String hint, String accountId) async {}
+
+  @override
+  Future<void> markHandled(List<String> smsIds) async {}
 }

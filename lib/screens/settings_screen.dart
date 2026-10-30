@@ -277,7 +277,7 @@ class _SmsDetectionTile extends StatelessWidget {
       leading: const _TileIcon(Icons.sms_outlined),
       title: const Text('Detect from bank SMS'),
       subtitle: Text(switch ((detection.enabled, pending)) {
-        (false, _) => 'Suggests expenses to add. SMS are read on this phone only.',
+        (false, _) => 'Pops up spends as bank SMS arrive, to add in a tap. SMS stay on this phone.',
         (true, 0) => 'On · nothing to review',
         (true, 1) => 'On · 1 to review',
         (true, _) => 'On · $pending to review',

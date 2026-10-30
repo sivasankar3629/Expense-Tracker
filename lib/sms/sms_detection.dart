@@ -8,6 +8,7 @@ import '../state/expense_store.dart';
 import 'detection_storage.dart';
 import 'sms_parser.dart';
 import 'sms_source.dart';
+import 'spend_notifications.dart';
 
 /// How turning detection on went.
 enum SmsAccess { granted, denied }
@@ -20,26 +21,46 @@ class SmsDetection extends ChangeNotifier {
     required this.store,
     required this.source,
     required this.storage,
+    this.notifier,
     DetectionData data = const DetectionData(),
     DateTime Function()? clock,
-  })  : _enabled = data.enabled,
-        _scannedUntil = data.scannedUntil,
-        _pending = [...data.pending]..sort(_newestFirst),
-        _accountHints = {...data.accountHints},
-        _clock = clock ?? DateTime.now;
+  })  : _clock = clock ?? DateTime.now {
+    _load(data);
+  }
 
   final ExpenseStore store;
   final SmsSource source;
   final DetectionStorage storage;
+
+  /// Tells the user about a spend as its SMS arrives; null in tests that
+  /// don't care.
+  final SpendNotifier? notifier;
   final DateTime Function() _clock;
 
-  bool _enabled;
+  bool _enabled = false;
   DateTime? _scannedUntil;
-  final List<DetectedTransaction> _pending;
-  final Map<String, String> _accountHints;
+  final List<DetectedTransaction> _pending = [];
+  final Map<String, String> _accountHints = {};
+  final Set<String> _handled = {};
   Future<void> _pendingWrites = Future.value();
   Future<int>? _scanning;
   AppLifecycleListener? _lifecycle;
+  StreamSubscription<SmsMessage>? _arrivals;
+
+  void _load(DetectionData data) {
+    _enabled = data.enabled;
+    _scannedUntil = data.scannedUntil;
+    _pending
+      ..clear()
+      ..addAll(data.pending)
+      ..sort(_newestFirst);
+    _accountHints
+      ..clear()
+      ..addAll(data.accountHints);
+    _handled
+      ..clear()
+      ..addAll(data.handledIds);
+  }
 
   /// How far back the first scan looks.
   static const firstScanDays = 30;
@@ -60,15 +81,48 @@ class SmsDetection extends ChangeNotifier {
     );
   }
 
-  /// Scans whenever the app comes back to the foreground, as well as now.
+  /// Scans now and whenever the app comes back to the foreground, and
+  /// handles SMS that arrive while it's open.
   void startAutoScan() {
-    _lifecycle ??= AppLifecycleListener(onResume: () => unawaited(scan()));
+    _lifecycle ??= AppLifecycleListener(onResume: () => unawaited(_catchUp()));
+    _arrivals ??= source.arrivals.listen((sms) => unawaited(receive(sms)));
+    if (_enabled) unawaited(_ensureLiveAccess());
     unawaited(scan());
+  }
+
+  /// While the app was away, SMS that arrived were handled in the background
+  /// and notification buttons may have been tapped: pick those up, then scan.
+  Future<void> _catchUp() async {
+    await reload();
+    await scan();
+  }
+
+  /// Re-reads what's saved, e.g. after the background handled an SMS.
+  Future<void> reload() async {
+    await _pendingWrites;
+    try {
+      _load(await storage.loadDetection());
+      notifyListeners();
+    } catch (e, stack) {
+      debugPrint('Could not reload detection: $e\n$stack');
+    }
+  }
+
+  /// SMS caught as they arrive, and notifications about them. Catching SMS
+  /// needs no prompt once reading them is allowed; notifications may ask.
+  Future<void> _ensureLiveAccess() async {
+    try {
+      await source.ensureLivePermission();
+      await notifier?.requestPermission();
+    } catch (e, stack) {
+      debugPrint('Could not set up live detection: $e\n$stack');
+    }
   }
 
   @override
   void dispose() {
     _lifecycle?.dispose();
+    _arrivals?.cancel();
     super.dispose();
   }
 
@@ -80,6 +134,7 @@ class SmsDetection extends ChangeNotifier {
     _enabled = true;
     notifyListeners();
     _save(() => storage.saveDetectionEnabled(true));
+    await _ensureLiveAccess();
     await scan();
     return SmsAccess.granted;
   }
@@ -92,7 +147,36 @@ class SmsDetection extends ChangeNotifier {
     notifyListeners();
     _save(() => storage.saveDetectionEnabled(false));
     _save(() => storage.removeDetected(ids));
+    for (final id in ids) {
+      unawaited(notifier?.cancel(id));
+    }
   }
+
+  /// An SMS that just arrived. If it's a new spend it joins the review list
+  /// and the user gets a notification; returns it, or null.
+  Future<DetectedTransaction?> receive(SmsMessage sms) async {
+    if (!_enabled) return null;
+    final t = parseBankSms(sms);
+    if (t == null || _isKnown(t, const [])) return null;
+    _pending
+      ..add(t)
+      ..sort(_newestFirst);
+    notifyListeners();
+    _save(() => storage.addDetected([t]));
+    final text = spendNotificationText(t, currency: store.currency, account: accountFor(t)?.nickname);
+    try {
+      await notifier?.show(t.smsId, title: text.title, body: text.body);
+    } catch (e, stack) {
+      debugPrint('Could not show notification: $e\n$stack');
+    }
+    return t;
+  }
+
+  /// Already waiting, already added or ignored, or the same payment told twice.
+  bool _isKnown(DetectedTransaction t, List<DetectedTransaction> alsoFound) =>
+      _handled.contains(t.smsId) ||
+      _pending.any((p) => p.smsId == t.smsId) ||
+      [..._pending, ...alsoFound].any((p) => _sameSpend(p, t));
 
   /// Looks at SMS received since the last scan. Returns how many new spends
   /// were found. Calls made while a scan is running share it.
@@ -118,8 +202,7 @@ class SmsDetection extends ChangeNotifier {
     final found = <DetectedTransaction>[];
     for (final sms in messages) {
       final t = parseBankSms(sms);
-      if (t == null || _pending.any((p) => p.smsId == t.smsId)) continue;
-      if ([..._pending, ...found].any((p) => _sameSpend(p, t))) continue;
+      if (t == null || _isKnown(t, found)) continue;
       found.add(t);
     }
     final newest = messages.fold<DateTime>(since, (latest, m) => m.date.isAfter(latest) ? m.date : latest);
@@ -184,6 +267,7 @@ class SmsDetection extends ChangeNotifier {
   /// list, and its account ending now points at the account they chose.
   void added(DetectedTransaction t, Expense expense) {
     _pending.removeWhere((p) => p.smsId == t.smsId);
+    _markHandled([t.smsId]);
     final hint = t.accountHint;
     if (hint != null && expense.accountId != Account.cash.id) {
       _accountHints[hint] = expense.accountId;
@@ -195,6 +279,7 @@ class SmsDetection extends ChangeNotifier {
 
   void ignore(DetectedTransaction t) {
     _pending.removeWhere((p) => p.smsId == t.smsId);
+    _markHandled([t.smsId]);
     notifyListeners();
     _save(() => storage.removeDetected([t.smsId]));
   }
@@ -202,7 +287,24 @@ class SmsDetection extends ChangeNotifier {
   void ignoreAll() {
     final ids = [for (final t in _pending) t.smsId];
     _pending.clear();
+    _markHandled(ids);
     notifyListeners();
     _save(() => storage.removeDetected(ids));
+  }
+
+  /// Waiting item for [smsId], e.g. from a notification; null if it's gone.
+  DetectedTransaction? pendingById(String smsId) {
+    for (final t in _pending) {
+      if (t.smsId == smsId) return t;
+    }
+    return null;
+  }
+
+  void _markHandled(List<String> ids) {
+    _handled.addAll(ids);
+    _save(() => storage.markHandled(ids));
+    for (final id in ids) {
+      unawaited(notifier?.cancel(id));
+    }
   }
 }

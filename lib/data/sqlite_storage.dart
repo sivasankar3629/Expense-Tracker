@@ -29,17 +29,19 @@ class SqliteStorage implements ExpenseStorage, DetectionStorage {
     final db = await dbFactory.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 4,
+        version: 5,
         onCreate: (db, version) async {
           await _createVersion1(db);
           await _upgradeToVersion2(db);
           await _upgradeToVersion3(db);
           await _upgradeToVersion4(db);
+          await _upgradeToVersion5(db);
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) await _upgradeToVersion2(db);
           if (oldVersion < 3) await _upgradeToVersion3(db);
           if (oldVersion < 4) await _upgradeToVersion4(db);
+          if (oldVersion < 5) await _upgradeToVersion5(db);
         },
       ),
     );
@@ -117,6 +119,19 @@ class SqliteStorage implements ExpenseStorage, DetectionStorage {
         )''');
     await batch.commit(noResult: true);
   }
+
+  /// Remembers SMS already added or ignored, so neither a later scan nor
+  /// the same SMS caught as it arrived brings them back.
+  static Future<void> _upgradeToVersion5(Database db) async {
+    await db.execute('''
+      CREATE TABLE sms_handled (
+        sms_id TEXT PRIMARY KEY,
+        handled_at INTEGER NOT NULL
+      )''');
+  }
+
+  /// How long handled SMS are remembered: well past the 30 days a scan looks back.
+  static const _handledFor = Duration(days: 60);
 
   Future<void> close() => _db.close();
 
@@ -294,6 +309,11 @@ class SqliteStorage implements ExpenseStorage, DetectionStorage {
       for (final row in await _db.query('settings')) row['key'] as String: row['value'] as String,
     };
     final scannedUntil = int.tryParse(settings[_smsScannedUntilKey] ?? '');
+    await _db.delete(
+      'sms_handled',
+      where: 'handled_at < ?',
+      whereArgs: [DateTime.now().subtract(_handledFor).millisecondsSinceEpoch],
+    );
     return DetectionData(
       enabled: settings[_smsEnabledKey] == '1',
       scannedUntil: scannedUntil == null ? null : DateTime.fromMillisecondsSinceEpoch(scannedUntil),
@@ -315,6 +335,7 @@ class SqliteStorage implements ExpenseStorage, DetectionStorage {
         for (final row in await _db.query('sms_account_hints'))
           row['hint'] as String: row['account_id'] as String,
       },
+      handledIds: {for (final row in await _db.query('sms_handled')) row['sms_id'] as String},
     );
   }
 
@@ -365,6 +386,20 @@ class SqliteStorage implements ExpenseStorage, DetectionStorage {
       {'hint': hint, 'account_id': accountId},
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+  }
+
+  @override
+  Future<void> markHandled(List<String> smsIds) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final batch = _db.batch();
+    for (final id in smsIds) {
+      batch.insert(
+        'sms_handled',
+        {'sms_id': id, 'handled_at': now},
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+    await batch.commit(noResult: true);
   }
 
   @override

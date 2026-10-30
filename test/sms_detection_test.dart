@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -21,6 +22,14 @@ class FakeSmsSource implements SmsSource {
   bool grantOnRequest;
   final List<SmsMessage> messages = [];
   DateTime? lastSince;
+  bool livePermissionAsked = false;
+  final arrivalsController = StreamController<SmsMessage>.broadcast();
+
+  @override
+  Future<void> ensureLivePermission() async => livePermissionAsked = true;
+
+  @override
+  Stream<SmsMessage> get arrivals => arrivalsController.stream;
 
   @override
   Future<bool> hasPermission() async => granted;
@@ -186,6 +195,7 @@ void main() {
     // Nothing new since, so nothing reappears.
     expect(await detection.scan(), 0);
     expect(source.lastSince, now.subtract(const Duration(hours: 1)));
+    await detection.saved;
     await storage.close();
   });
 

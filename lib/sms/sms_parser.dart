@@ -1,6 +1,19 @@
-/// One SMS as read from the phone's inbox.
+/// Names an SMS by who sent it and what it says, so the same message read
+/// from the inbox and caught as it arrived is recognised as one.
+String smsFingerprint(String sender, String body) {
+  final text = '$sender\n$body';
+  // FNV-1a, kept to 32 bits so it's the same wherever it runs.
+  var hash = 0x811c9dc5;
+  for (final unit in text.codeUnits) {
+    hash = ((hash ^ unit) * 0x01000193) & 0xffffffff;
+  }
+  return '${hash.toRadixString(16)}-${text.length}';
+}
+
+/// One SMS as read from the phone's inbox, or as it arrived.
 class SmsMessage {
-  const SmsMessage({required this.id, required this.sender, required this.body, required this.date});
+  SmsMessage({String? id, required this.sender, required this.body, required this.date})
+      : id = id ?? smsFingerprint(sender, body);
 
   final String id;
 

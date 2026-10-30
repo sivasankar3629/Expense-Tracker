@@ -10,6 +10,7 @@ import '../widgets/kipto_backdrop.dart';
 import 'backup_screen.dart';
 import 'history_tab.dart';
 import 'overview_tab.dart';
+import 'review_screen.dart';
 import 'settings_screen.dart';
 
 /// The app's frame: Home and History tabs, a shared top bar and Add button.
@@ -21,6 +22,7 @@ class AppShell extends StatefulWidget {
     this.versionLabel,
     this.addRequests,
     this.detection,
+    this.openSpendRequests,
   });
 
   final ExpenseStore store;
@@ -37,6 +39,9 @@ class AppShell extends StatefulWidget {
   /// Finds spends in bank SMS; null where that isn't possible.
   final SmsDetection? detection;
 
+  /// Spend notifications tapped: the SMS id whose add form to open.
+  final Stream<String>? openSpendRequests;
+
   @override
   State<AppShell> createState() => _AppShellState();
 }
@@ -44,6 +49,7 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _tab = 0;
   StreamSubscription<void>? _addRequests;
+  StreamSubscription<String>? _openSpendRequests;
 
   ExpenseStore get _store => widget.store;
 
@@ -57,13 +63,31 @@ class _AppShellState extends State<AppShell> {
       _addRequests = widget.addRequests?.listen((_) {
         if (mounted) ExpenseActions.add(context, _store);
       });
+      _openSpendRequests = widget.openSpendRequests?.listen(_openSpend);
     });
   }
 
   @override
   void dispose() {
     _addRequests?.cancel();
+    _openSpendRequests?.cancel();
     super.dispose();
+  }
+
+  /// From a notification: its spend's form, or the review list if that
+  /// spend has since been dealt with.
+  Future<void> _openSpend(String smsId) async {
+    final detection = widget.detection;
+    if (detection == null) return;
+    // It may have arrived while the app was in the background.
+    if (detection.pendingById(smsId) == null) await detection.reload();
+    if (!mounted) return;
+    switch (detection.pendingById(smsId)) {
+      case final t?:
+        openDetectedSpend(context, detection, t);
+      case null:
+        _push(ReviewScreen(detection: detection));
+    }
   }
 
   void _push(Widget screen) {

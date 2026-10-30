@@ -16,10 +16,19 @@ class MainActivity : FlutterActivity() {
     /** Lets the app read bank SMS to suggest expenses; see lib/sms/sms_source.dart. */
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kipto/sms").setMethodCallHandler { call, result ->
+        val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "kipto/sms")
+        liveChannel = channel
+        channel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "hasPermission" -> result.success(hasSmsPermission())
                 "requestPermission" -> requestSmsPermission(result)
+                "ensureLivePermission" -> {
+                    // Granted without a prompt once READ_SMS is: same permission group.
+                    if (hasSmsPermission() && !isGranted(Manifest.permission.RECEIVE_SMS)) {
+                        requestPermissions(arrayOf(Manifest.permission.RECEIVE_SMS), LIVE_PERMISSION_REQUEST)
+                    }
+                    result.success(null)
+                }
                 "inbox" -> readInbox(call.argument<Number>("since")?.toLong() ?: 0L, result)
                 "openAppSettings" -> {
                     startActivity(
@@ -32,8 +41,14 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun hasSmsPermission() =
-        checkSelfPermission(Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        liveChannel = null
+        super.cleanUpFlutterEngine(flutterEngine)
+    }
+
+    private fun isGranted(permission: String) = checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
+
+    private fun hasSmsPermission() = isGranted(Manifest.permission.READ_SMS)
 
     private fun requestSmsPermission(result: MethodChannel.Result) {
         if (hasSmsPermission()) {
@@ -42,7 +57,10 @@ class MainActivity : FlutterActivity() {
         }
         pendingPermission?.success(false)
         pendingPermission = result
-        requestPermissions(arrayOf(Manifest.permission.READ_SMS), SMS_PERMISSION_REQUEST)
+        requestPermissions(
+            arrayOf(Manifest.permission.READ_SMS, Manifest.permission.RECEIVE_SMS),
+            SMS_PERMISSION_REQUEST,
+        )
     }
 
     override fun onRequestPermissionsResult(
@@ -52,7 +70,8 @@ class MainActivity : FlutterActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == SMS_PERMISSION_REQUEST) {
-            pendingPermission?.success(grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED)
+            // READ_SMS decides: it's what reading the inbox needs.
+            pendingPermission?.success(hasSmsPermission())
             pendingPermission = null
         }
     }
@@ -91,7 +110,15 @@ class MainActivity : FlutterActivity() {
         }.start()
     }
 
-    private companion object {
-        const val SMS_PERMISSION_REQUEST = 4217
+    companion object {
+        private const val SMS_PERMISSION_REQUEST = 4217
+        private const val LIVE_PERMISSION_REQUEST = 4218
+
+        /**
+         * The running app's SMS channel, while it has one; SmsReceiver hands
+         * new SMS to it rather than starting Flutter in the background.
+         */
+        @Volatile
+        var liveChannel: MethodChannel? = null
     }
 }

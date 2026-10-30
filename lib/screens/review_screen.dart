@@ -83,15 +83,7 @@ class _DetectedCard extends StatelessWidget {
   final SmsDetection detection;
   final DetectedTransaction transaction;
 
-  void _add(BuildContext context) {
-    ExpenseActions.addDraft(
-      context,
-      detection.store,
-      detection.draftFor(transaction),
-      source: '${transaction.senderName}: ${transaction.body}',
-      onSaved: (expense) => detection.added(transaction, expense),
-    );
-  }
+  void _add(BuildContext context) => openDetectedSpend(context, detection, transaction);
 
   @override
   Widget build(BuildContext context) {
@@ -173,6 +165,17 @@ class _DetectedCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Opens the add form filled in from [t]; saving it takes [t] off the list.
+void openDetectedSpend(BuildContext context, SmsDetection detection, DetectedTransaction t) {
+  ExpenseActions.addDraft(
+    context,
+    detection.store,
+    detection.draftFor(t),
+    source: '${t.senderName}: ${t.body}',
+    onSaved: (expense) => detection.added(t, expense),
+  );
 }
 
 /// On Home while there's something to review.
