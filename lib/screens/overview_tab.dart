@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/expense.dart';
+import '../sms/sms_detection.dart';
 import '../state/expense_store.dart';
 import '../widgets/category_card.dart';
 import '../widgets/category_dialog.dart';
@@ -8,12 +9,16 @@ import '../widgets/expense_list.dart';
 import '../widgets/summary_card.dart';
 import 'categories_screen.dart';
 import 'category_screen.dart';
+import 'review_screen.dart';
 
 /// Home: this month at a glance, by category, plus the latest expenses.
 class OverviewTab extends StatelessWidget {
-  const OverviewTab({super.key, required this.store, required this.onSeeAll});
+  const OverviewTab({super.key, required this.store, required this.onSeeAll, this.detection});
 
   final ExpenseStore store;
+
+  /// Shows a "to review" banner while bank SMS have spends waiting.
+  final SmsDetection? detection;
 
   /// Switches to the full history.
   final VoidCallback onSeeAll;
@@ -28,10 +33,12 @@ class OverviewTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final detection = this.detection;
     return ListenableBuilder(
-      listenable: store,
+      listenable: Listenable.merge([store, ?detection]),
       builder: (context, _) {
         final now = DateTime.now();
+        final toReview = detection != null && detection.enabled ? detection.pending.length : 0;
         final thisMonth = store.expensesInBudgetMonth(now);
         final expenses = store.expenses;
 
@@ -58,6 +65,15 @@ class OverviewTab extends StatelessWidget {
               count: thisMonth.length,
               todayTotal: totalOf(thisMonth.where((e) => DateUtils.isSameDay(e.dateTime, now))),
             ),
+            if (toReview > 0) ...[
+              const SizedBox(height: 12),
+              ReviewBanner(
+                count: toReview,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => ReviewScreen(detection: detection!)),
+                ),
+              ),
+            ],
             SectionHeader(
               title: 'Categories',
               action: categories.isEmpty

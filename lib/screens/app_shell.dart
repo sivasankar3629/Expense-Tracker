@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../cloud/cloud_sync.dart';
+import '../sms/sms_detection.dart';
 import '../state/expense_store.dart';
 import '../widgets/expense_list.dart';
 import '../widgets/kipto_backdrop.dart';
@@ -19,6 +20,7 @@ class AppShell extends StatefulWidget {
     this.cloudSync,
     this.versionLabel,
     this.addRequests,
+    this.detection,
   });
 
   final ExpenseStore store;
@@ -31,6 +33,9 @@ class AppShell extends StatefulWidget {
 
   /// Requests from outside the app (the home-screen widget) to add an expense.
   final Stream<void>? addRequests;
+
+  /// Finds spends in bank SMS; null where that isn't possible.
+  final SmsDetection? detection;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -113,6 +118,7 @@ class _AppShellState extends State<AppShell> {
               store: _store,
               cloudSync: widget.cloudSync,
               versionLabel: widget.versionLabel,
+              detection: widget.detection,
             )),
           ),
           const SizedBox(width: 4),
@@ -126,7 +132,11 @@ class _AppShellState extends State<AppShell> {
             child: IndexedStack(
               index: _tab,
               children: [
-                OverviewTab(store: _store, onSeeAll: () => setState(() => _tab = 1)),
+                OverviewTab(
+                  store: _store,
+                  detection: widget.detection,
+                  onSeeAll: () => setState(() => _tab = 1),
+                ),
                 HistoryTab(store: _store),
               ],
             ),

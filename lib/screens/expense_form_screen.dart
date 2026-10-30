@@ -19,10 +19,22 @@ class ExpenseFormScreen extends StatefulWidget {
     required this.store,
     this.initial,
     this.initialCategoryId,
+    this.draft,
+    this.draftSource,
+    this.onSaved,
   });
 
   final ExpenseStore store;
   final Expense? initial;
+
+  /// Pre-fills a new expense, e.g. from a bank SMS; saving adds it.
+  final Expense? draft;
+
+  /// Where [draft] came from, shown above the form, e.g. the SMS text.
+  final String? draftSource;
+
+  /// Called with the expense once it's saved.
+  final ValueChanged<Expense>? onSaved;
 
   /// Pre-selects a category for a new expense, e.g. when adding from that
   /// category's screen.
@@ -34,25 +46,27 @@ class ExpenseFormScreen extends StatefulWidget {
 
 class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  late final _titleController = TextEditingController(text: widget.initial?.title);
+  /// What the fields start with: the expense being edited, or a draft.
+  late final Expense? _prefill = widget.initial ?? widget.draft;
+  late final _titleController = TextEditingController(text: _prefill?.title);
   late final _amountController = TextEditingController(
-    text: widget.initial == null ? null : _editableAmount(widget.initial!.amount),
+    text: _prefill == null ? null : _editableAmount(_prefill.amount),
   );
-  late final _notesController = TextEditingController(text: widget.initial?.notes);
+  late final _notesController = TextEditingController(text: _prefill?.notes);
 
-  late DateTime _date = DateUtils.dateOnly(widget.initial?.dateTime ?? DateTime.now());
-  late TimeOfDay _time = TimeOfDay.fromDateTime(widget.initial?.dateTime ?? DateTime.now());
+  late DateTime _date = DateUtils.dateOnly(_prefill?.dateTime ?? DateTime.now());
+  late TimeOfDay _time = TimeOfDay.fromDateTime(_prefill?.dateTime ?? DateTime.now());
   late Account _account = _initialAccount();
   // Dropped if the category has since been deleted.
   late String? _categoryId =
-      widget.store.categoryById(widget.initial?.categoryId ?? widget.initialCategoryId)?.id;
+      widget.store.categoryById(_prefill?.categoryId ?? widget.initialCategoryId)?.id;
 
   bool get _isEditing => widget.initial != null;
 
   Account _initialAccount() {
-    final initial = widget.initial;
-    if (initial == null) return widget.store.lastUsedAccount;
-    return widget.store.accountById(initial.accountId) ?? Account.cash;
+    final prefill = _prefill;
+    if (prefill == null) return widget.store.lastUsedAccount;
+    return widget.store.accountById(prefill.accountId) ?? Account.cash;
   }
 
   /// "12" rather than "12.0", and "180.50" rather than "180.5".
@@ -98,6 +112,7 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
     } else {
       widget.store.addExpense(expense);
     }
+    widget.onSaved?.call(expense);
     Navigator.of(context).pop(ExpenseFormResult.saved);
   }
 
@@ -143,12 +158,16 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        if (widget.draftSource case final source?) ...[
+                          _DraftSource(source),
+                          const SizedBox(height: 12),
+                        ],
                         // Amount first and large: it's the one field every expense needs.
                         TextFormField(
                           controller: _amountController,
-                          // Pop the keyboard up for new expenses only; editing often
-                          // starts with just looking.
-                          autofocus: !_isEditing,
+                          // Pop the keyboard up for blank new expenses only; editing
+                          // and drafts often start with just looking.
+                          autofocus: _prefill == null,
                           style: amountStyle,
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
                           textInputAction: TextInputAction.next,
@@ -305,6 +324,40 @@ class _PickerField extends StatelessWidget {
           alignment: AlignmentDirectional.centerStart,
           child: Text(value, maxLines: 1),
         ),
+      ),
+    );
+  }
+}
+
+/// The SMS a draft was read from, so the user can check it against the form.
+class _DraftSource extends StatelessWidget {
+  const _DraftSource(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.sms_outlined, size: 18, color: theme.colorScheme.onSecondaryContainer),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSecondaryContainer),
+            ),
+          ),
+        ],
       ),
     );
   }

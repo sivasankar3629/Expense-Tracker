@@ -14,6 +14,8 @@ import 'firebase_config.dart';
 import 'models/preferences.dart';
 import 'platform/home_screen_widget.dart';
 import 'screens/app_shell.dart';
+import 'sms/sms_detection.dart';
+import 'sms/sms_source.dart';
 import 'state/expense_store.dart';
 import 'theme.dart';
 import 'widgets/currency_scope.dart';
@@ -21,8 +23,17 @@ import 'widgets/currency_scope.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // SQLite isn't available on web, so the web preview keeps data in memory only.
-  final storage = SyncedStorage(kIsWeb ? InMemoryStorage() : await SqliteStorage.open());
+  final sqlite = kIsWeb ? null : await SqliteStorage.open();
+  final storage = SyncedStorage(sqlite ?? InMemoryStorage());
   final store = await ExpenseStore.open(storage);
+  final detection = sqlite != null && AndroidSmsSource.isSupported
+      ? (SmsDetection(
+          store: store,
+          source: AndroidSmsSource(),
+          storage: sqlite,
+          data: await sqlite.loadDetection(),
+        )..startAutoScan())
+      : null;
   final info = await PackageInfo.fromPlatform();
   final homeWidget = HomeScreenWidget.isSupported ? HomeScreenWidget(store) : null;
   await homeWidget?.start();
@@ -31,6 +42,7 @@ Future<void> main() async {
     cloudSync: await _startCloudSync(storage, store),
     versionLabel: 'Version ${info.version} (build ${info.buildNumber})',
     addRequests: homeWidget?.addRequests,
+    detection: detection,
   ));
 }
 
@@ -61,9 +73,13 @@ class ExpenseTrackerApp extends StatelessWidget {
     this.cloudSync,
     this.versionLabel,
     this.addRequests,
+    this.detection,
   });
 
   final ExpenseStore store;
+
+  /// Null where SMS can't be read (web, tests); the feature then stays hidden.
+  final SmsDetection? detection;
   final CloudSync? cloudSync;
 
   /// Taps on the home-screen widget's + button; each opens the add form.
@@ -93,6 +109,7 @@ class ExpenseTrackerApp extends StatelessWidget {
           cloudSync: cloudSync,
           versionLabel: versionLabel,
           addRequests: addRequests,
+          detection: detection,
         ),
       ),
     );

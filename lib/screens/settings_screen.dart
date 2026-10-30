@@ -3,20 +3,31 @@ import 'package:flutter/material.dart';
 import '../cloud/cloud_sync.dart';
 import '../models/currency.dart';
 import '../models/preferences.dart';
+import '../sms/sms_detection.dart';
 import '../state/expense_store.dart';
 import '../utils/format.dart';
 import '../widgets/expense_list.dart';
 import 'accounts_screen.dart';
 import 'backup_screen.dart';
 import 'categories_screen.dart';
+import 'review_screen.dart';
 
 /// Preferences, plus the places to manage categories, accounts and backups.
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key, required this.store, this.cloudSync, this.versionLabel});
+  const SettingsScreen({
+    super.key,
+    required this.store,
+    this.cloudSync,
+    this.versionLabel,
+    this.detection,
+  });
 
   final ExpenseStore store;
   final CloudSync? cloudSync;
   final String? versionLabel;
+
+  /// Null where SMS can't be read; the setting is then left out.
+  final SmsDetection? detection;
 
   void _push(BuildContext context, Widget screen) {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
@@ -28,7 +39,7 @@ class SettingsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListenableBuilder(
-        listenable: store,
+        listenable: Listenable.merge([store, ?detection]),
         builder: (context, _) {
           final currency = store.currency;
           final startDay = store.preferences.monthStartDay;
@@ -64,6 +75,10 @@ class SettingsScreen extends StatelessWidget {
                   ],
                 ),
               ),
+              if (detection case final detection?) ...[
+                const SectionHeader(title: 'Automatic'),
+                Card(child: _SmsDetectionTile(detection: detection)),
+              ],
               const SectionHeader(title: 'Your data'),
               Card(
                 child: Column(
@@ -231,6 +246,50 @@ class SettingsScreen extends StatelessWidget {
       },
     );
     if (picked != null) store.setMonthStartDay(picked);
+  }
+}
+
+/// Turns SMS detection on or off; when on, tapping opens the review list.
+class _SmsDetectionTile extends StatelessWidget {
+  const _SmsDetectionTile({required this.detection});
+
+  final SmsDetection detection;
+
+  Future<void> _toggle(BuildContext context, bool on) async {
+    if (!on) {
+      detection.disable();
+      return;
+    }
+    final messenger = ScaffoldMessenger.of(context);
+    if (await detection.enable() == SmsAccess.denied) {
+      messenger.showSnackBar(SnackBar(
+        content: const Text('Kipto needs SMS access to find spends. Turn it on in app settings.'),
+        action: SnackBarAction(label: 'Settings', onPressed: detection.source.openAppSettings),
+      ));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pending = detection.pending.length;
+    return ListTile(
+      contentPadding: const EdgeInsets.fromLTRB(16, 4, 12, 4),
+      leading: const _TileIcon(Icons.sms_outlined),
+      title: const Text('Detect from bank SMS'),
+      subtitle: Text(switch ((detection.enabled, pending)) {
+        (false, _) => 'Suggests expenses to add. SMS are read on this phone only.',
+        (true, 0) => 'On · nothing to review',
+        (true, 1) => 'On · 1 to review',
+        (true, _) => 'On · $pending to review',
+      }),
+      isThreeLine: !detection.enabled,
+      trailing: Switch(value: detection.enabled, onChanged: (on) => _toggle(context, on)),
+      onTap: detection.enabled
+          ? () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => ReviewScreen(detection: detection)),
+              )
+          : () => _toggle(context, true),
+    );
   }
 }
 

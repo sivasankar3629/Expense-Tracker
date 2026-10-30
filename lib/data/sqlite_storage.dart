@@ -4,10 +4,12 @@ import '../models/account.dart';
 import '../models/category.dart';
 import '../models/expense.dart';
 import '../models/preferences.dart';
+import '../sms/detection_storage.dart';
+import '../sms/sms_parser.dart';
 import 'expense_storage.dart';
 
 /// Saves data in a SQLite database on the device.
-class SqliteStorage implements ExpenseStorage {
+class SqliteStorage implements ExpenseStorage, DetectionStorage {
   SqliteStorage._(this._db);
 
   final Database _db;
@@ -17,6 +19,8 @@ class SqliteStorage implements ExpenseStorage {
   static const _currencyKey = 'currency';
   static const _monthStartDayKey = 'month_start_day';
   static const _themeKey = 'theme';
+  static const _smsEnabledKey = 'sms_enabled';
+  static const _smsScannedUntilKey = 'sms_scanned_until';
 
   /// [factory] and [path] are overridable so tests can use a desktop SQLite.
   static Future<SqliteStorage> open({DatabaseFactory? factory, String? path}) async {
@@ -25,15 +29,17 @@ class SqliteStorage implements ExpenseStorage {
     final db = await dbFactory.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 3,
+        version: 4,
         onCreate: (db, version) async {
           await _createVersion1(db);
           await _upgradeToVersion2(db);
           await _upgradeToVersion3(db);
+          await _upgradeToVersion4(db);
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) await _upgradeToVersion2(db);
           if (oldVersion < 3) await _upgradeToVersion3(db);
+          if (oldVersion < 4) await _upgradeToVersion4(db);
         },
       ),
     );
@@ -86,6 +92,30 @@ class SqliteStorage implements ExpenseStorage {
   /// Adds monthly budgets, in paise; null means no budget.
   static Future<void> _upgradeToVersion3(Database db) async {
     await db.execute('ALTER TABLE categories ADD COLUMN budget_paise INTEGER');
+  }
+
+  /// Adds expenses detected from SMS, waiting for review, and which account
+  /// each card or account ending belongs to. Only ever on this phone.
+  static Future<void> _upgradeToVersion4(Database db) async {
+    final batch = db.batch()
+      ..execute('''
+        CREATE TABLE sms_detected (
+          sms_id TEXT PRIMARY KEY,
+          amount_paise INTEGER NOT NULL,
+          date_time INTEGER NOT NULL,
+          sender TEXT NOT NULL,
+          body TEXT NOT NULL,
+          merchant TEXT,
+          account_hint TEXT,
+          is_card INTEGER NOT NULL DEFAULT 0,
+          reference TEXT
+        )''')
+      ..execute('''
+        CREATE TABLE sms_account_hints (
+          hint TEXT PRIMARY KEY,
+          account_id TEXT NOT NULL
+        )''');
+    await batch.commit(noResult: true);
   }
 
   Future<void> close() => _db.close();
@@ -254,6 +284,85 @@ class SqliteStorage implements ExpenseStorage {
     await _db.insert(
       'settings',
       {'key': key, 'value': value},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  @override
+  Future<DetectionData> loadDetection() async {
+    final settings = {
+      for (final row in await _db.query('settings')) row['key'] as String: row['value'] as String,
+    };
+    final scannedUntil = int.tryParse(settings[_smsScannedUntilKey] ?? '');
+    return DetectionData(
+      enabled: settings[_smsEnabledKey] == '1',
+      scannedUntil: scannedUntil == null ? null : DateTime.fromMillisecondsSinceEpoch(scannedUntil),
+      pending: [
+        for (final row in await _db.query('sms_detected', orderBy: 'date_time DESC'))
+          DetectedTransaction(
+            smsId: row['sms_id'] as String,
+            amount: (row['amount_paise'] as int) / 100,
+            date: DateTime.fromMillisecondsSinceEpoch(row['date_time'] as int),
+            sender: row['sender'] as String,
+            body: row['body'] as String,
+            merchant: row['merchant'] as String?,
+            accountHint: row['account_hint'] as String?,
+            isCard: row['is_card'] == 1,
+            reference: row['reference'] as String?,
+          ),
+      ],
+      accountHints: {
+        for (final row in await _db.query('sms_account_hints'))
+          row['hint'] as String: row['account_id'] as String,
+      },
+    );
+  }
+
+  @override
+  Future<void> saveDetectionEnabled(bool enabled) => _saveSetting(_smsEnabledKey, enabled ? '1' : '0');
+
+  @override
+  Future<void> saveScannedUntil(DateTime time) =>
+      _saveSetting(_smsScannedUntilKey, '${time.millisecondsSinceEpoch}');
+
+  @override
+  Future<void> addDetected(List<DetectedTransaction> transactions) async {
+    final batch = _db.batch();
+    for (final t in transactions) {
+      batch.insert(
+        'sms_detected',
+        {
+          'sms_id': t.smsId,
+          'amount_paise': (t.amount * 100).round(),
+          'date_time': t.date.millisecondsSinceEpoch,
+          'sender': t.sender,
+          'body': t.body,
+          'merchant': t.merchant,
+          'account_hint': t.accountHint,
+          'is_card': t.isCard ? 1 : 0,
+          'reference': t.reference,
+        },
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
+    }
+    await batch.commit(noResult: true);
+  }
+
+  @override
+  Future<void> removeDetected(List<String> smsIds) async {
+    if (smsIds.isEmpty) return;
+    await _db.delete(
+      'sms_detected',
+      where: 'sms_id IN (${List.filled(smsIds.length, '?').join(', ')})',
+      whereArgs: smsIds,
+    );
+  }
+
+  @override
+  Future<void> saveAccountHint(String hint, String accountId) async {
+    await _db.insert(
+      'sms_account_hints',
+      {'hint': hint, 'account_id': accountId},
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }

@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Reads bank SMS on this phone to suggest expenses; only when the user turns it on. -->
+    <uses-permission android:name="android.permission.READ_SMS" />
+    <!-- Phones without a SIM (tablets) can still install the app. -->
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
     <application
         android:label="Kipto"
         android:name="${applicationName}"

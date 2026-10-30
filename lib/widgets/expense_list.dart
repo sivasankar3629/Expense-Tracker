@@ -24,6 +24,21 @@ class ExpenseActions {
     );
   }
 
+  /// Opens the add form filled in from [draft]; [onSaved] hears if it's kept.
+  static void addDraft(
+    BuildContext context,
+    ExpenseStore store,
+    Expense draft, {
+    String? source,
+    ValueChanged<Expense>? onSaved,
+  }) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ExpenseFormScreen(store: store, draft: draft, draftSource: source, onSaved: onSaved),
+      ),
+    );
+  }
+
   static Future<void> edit(BuildContext context, ExpenseStore store, Expense expense) async {
     final result = await Navigator.of(context).push<ExpenseFormResult>(
       MaterialPageRoute(builder: (_) => ExpenseFormScreen(store: store, initial: expense)),
