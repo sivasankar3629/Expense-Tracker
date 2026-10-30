@@ -2,9 +2,9 @@ name: Build APK
 
 on:
   push:
-    branches: [main]
-    # A version tag, e.g. v1.0.0, publishes that version as its own release.
-    tags: ['v*']
+    # A release branch, e.g. release/v1, publishes the version in pubspec.yaml
+    # as its own release.
+    branches: [main, 'release/**']
   workflow_dispatch:
 
 # Only the newest build matters; cancel older ones still running.
@@ -74,22 +74,27 @@ jobs:
           path: dist/*.apk
           retention-days: 30
 
-      # A version tag gets its own release, shown as the latest on GitHub.
+      # A release branch publishes its version, e.g. v1.0.0, as its own
+      # release, shown as the latest on GitHub. Pushing a fix to the branch
+      # replaces that release's APK.
       - name: Publish version release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/heads/release/')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/*.apk \
-            --verify-tag \
+          VERSION=$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)
+          TAG="v$VERSION"
+          gh release delete "$TAG" --cleanup-tag --yes || true
+          gh release create "$TAG" dist/*.apk \
+            --target "$GITHUB_SHA" \
             --latest \
-            --title "Kipto ${GITHUB_REF_NAME#v}" \
-            --notes "Kipto ${GITHUB_REF_NAME#v} (build ${GITHUB_RUN_NUMBER}). Settings shows which version is installed."
+            --title "Kipto $VERSION" \
+            --notes "Kipto $VERSION (build ${GITHUB_RUN_NUMBER}). Settings shows which version is installed."
 
       # Everything else updates a rolling "latest" pre-release, so the newest
       # APK always has a direct, unzipped download link that works from a phone.
       - name: Publish to latest pre-release
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        if: ${{ !startsWith(github.ref, 'refs/heads/release/') }}
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: latest
