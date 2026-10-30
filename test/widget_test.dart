@@ -184,6 +184,24 @@ void main() {
     );
   });
 
+  testWidgets('picking a category leaves the chips where they are', (tester) async {
+    final store = ExpenseStore()
+      ..addCategory(name: 'Food', iconKey: 'food', colorValue: 0xFFE53935)
+      ..addCategory(name: 'Travel', iconKey: 'travel', colorValue: 0xFF1E88E5);
+    await tester.pumpWidget(ExpenseTrackerApp(store: store));
+    await openAddExpense(tester);
+
+    final travel = find.widgetWithText(FilterChip, 'Travel');
+    final before = tester.getTopLeft(travel);
+    await tester.tap(travel);
+    await tester.pump();
+    expect(tester.getTopLeft(travel), before);
+    expect(tester.widget<FilterChip>(travel).selected, isTrue);
+    expect(tester.widget<FilterChip>(find.widgetWithText(FilterChip, 'Food')).selected, isFalse);
+    // The pick is marked with a tick.
+    expect(find.descendant(of: travel, matching: find.byIcon(Icons.check_rounded)), findsOneWidget);
+  });
+
   testWidgets('tapping the selected category clears it', (tester) async {
     final store = ExpenseStore()..addCategory(name: 'Food', iconKey: 'food', colorValue: 0xFFE53935);
     await tester.pumpWidget(ExpenseTrackerApp(store: store));
