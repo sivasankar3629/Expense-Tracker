@@ -5,7 +5,8 @@ import '../state/expense_store.dart';
 import 'category_dialog.dart';
 import 'category_style.dart';
 
-/// Wrapping category chips with "New category" at the end.
+/// Wrapping category chips, most-used first, with "New category" at the end.
+/// Chips stay put when picked, so the one you tapped is where you left it.
 /// Tapping the selected chip again clears it, since a category is optional.
 class CategoryPicker extends StatelessWidget {
   const CategoryPicker({
@@ -31,13 +32,6 @@ class CategoryPicker extends StatelessWidget {
       listenable: store,
       builder: (context, _) {
         final categories = store.categoriesByUse;
-        // Keep the current pick visible at the front even if it's rarely used.
-        final selected = store.categoryById(selectedId);
-        if (selected != null) {
-          categories
-            ..removeWhere((c) => c.id == selected.id)
-            ..insert(0, selected);
-        }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -86,17 +80,20 @@ class _CategoryChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = categoryAccent(category.color);
+    // Picked: solid in the category's colour with a tick, so it stands out
+    // from the pale unpicked chips at a glance.
+    final ink = selected
+        ? (ThemeData.estimateBrightnessForColor(color) == Brightness.dark ? Colors.white : Colors.black87)
+        : categoryInk(context, color);
     return FilterChip(
-      avatar: Icon(category.icon, size: 18, color: categoryInk(context, color)),
+      avatar: Icon(selected ? Icons.check_rounded : category.icon, size: 18, color: ink),
       label: Text(category.name),
       selected: selected,
       showCheckmark: false,
       backgroundColor: categorySurface(context, color),
-      selectedColor: Color.lerp(categorySurface(context, color), color, 0.2),
-      labelStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
-        color: categoryInk(context, color), fontWeight: FontWeight.w700,
-      ),
-      side: BorderSide(color: selected ? categoryInk(context, color) : color.withValues(alpha: 0.25), width: selected ? 1.5 : 1),
+      selectedColor: color,
+      labelStyle: Theme.of(context).textTheme.labelLarge?.copyWith(color: ink, fontWeight: FontWeight.w700),
+      side: BorderSide(color: selected ? color : color.withValues(alpha: 0.25)),
       onSelected: (_) => onTap(),
     );
   }
