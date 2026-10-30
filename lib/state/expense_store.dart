@@ -171,6 +171,31 @@ class ExpenseStore extends ChangeNotifier {
     _save(() => _storage.saveAccount(updated));
   }
 
+  /// Accounts of [type], most recently used first, then most used, then in
+  /// the order they were added; each with when it was last used, if ever.
+  List<(Account, DateTime?)> accountsByUse(AccountType type) {
+    final lastUsed = <String, DateTime>{};
+    final uses = <String, int>{};
+    // Newest first, so the first expense seen for an account is its latest.
+    for (final e in _expenses) {
+      lastUsed.putIfAbsent(e.accountId, () => e.dateTime);
+      uses[e.accountId] = (uses[e.accountId] ?? 0) + 1;
+    }
+    final accounts = accountsOfType(type);
+    final order = {for (final (i, a) in accounts.indexed) a.id: i};
+    return [for (final a in accounts) (a, lastUsed[a.id])]..sort((x, y) {
+        final (a, aLast) = x;
+        final (b, bLast) = y;
+        if (aLast != bLast) {
+          if (aLast == null) return 1;
+          if (bLast == null) return -1;
+          return bLast.compareTo(aLast);
+        }
+        final byUse = (uses[b.id] ?? 0).compareTo(uses[a.id] ?? 0);
+        return byUse != 0 ? byUse : order[a.id]!.compareTo(order[b.id]!);
+      });
+  }
+
   int expenseCountFor(String accountId) =>
       _expenses.where((e) => e.accountId == accountId).length;
 

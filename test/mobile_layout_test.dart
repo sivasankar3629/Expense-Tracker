@@ -70,10 +70,11 @@ void main() {
       await tester.ensureVisible(foodChip);
       await tester.pumpAndSettle();
       await tester.tap(foodChip);
-      final bankChip = find.widgetWithText(ChoiceChip, 'SBI Savings');
-      await tester.ensureVisible(bankChip);
+      // Picking the Bank tab picks its only account.
+      final bankTab = find.text('Bank');
+      await tester.ensureVisible(bankTab);
       await tester.pumpAndSettle();
-      await tester.tap(bankChip);
+      await tester.tap(bankTab);
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
 

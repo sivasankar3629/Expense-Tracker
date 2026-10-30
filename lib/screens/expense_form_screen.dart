@@ -5,8 +5,8 @@ import '../models/account.dart';
 import '../models/expense.dart';
 import '../state/expense_store.dart';
 import '../utils/format.dart';
-import '../widgets/account_chips.dart';
 import '../widgets/category_picker.dart';
+import '../widgets/paid_from_picker.dart';
 import '../widgets/currency_scope.dart';
 
 /// What happened on the form, so the caller can react (e.g. offer undo).
@@ -227,7 +227,7 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                           onChanged: (id) => setState(() => _categoryId = id),
                         ),
                         const SizedBox(height: 16),
-                        AccountChips(
+                        PaidFromPicker(
                           store: widget.store,
                           selected: _account,
                           onChanged: (account) => setState(() => _account = account),

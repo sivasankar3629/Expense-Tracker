@@ -4,23 +4,25 @@ import '../models/account.dart';
 import '../state/expense_store.dart';
 
 /// Adds a new account, or edits [initial] when given. Returns the saved
-/// account, or null if cancelled.
+/// account, or null if cancelled. A new account starts as [type].
 Future<Account?> showAccountDialog(
   BuildContext context, {
   required ExpenseStore store,
   Account? initial,
+  AccountType type = AccountType.bank,
 }) {
   return showDialog<Account>(
     context: context,
-    builder: (_) => _AccountDialog(store: store, initial: initial),
+    builder: (_) => _AccountDialog(store: store, initial: initial, type: type),
   );
 }
 
 class _AccountDialog extends StatefulWidget {
-  const _AccountDialog({required this.store, this.initial});
+  const _AccountDialog({required this.store, this.initial, required this.type});
 
   final ExpenseStore store;
   final Account? initial;
+  final AccountType type;
 
   @override
   State<_AccountDialog> createState() => _AccountDialogState();
@@ -30,7 +32,7 @@ class _AccountDialogState extends State<_AccountDialog> {
   final _formKey = GlobalKey<FormState>();
   late final _nicknameController =
       TextEditingController(text: widget.initial?.nickname);
-  late AccountType _type = widget.initial?.type ?? AccountType.bank;
+  late AccountType _type = widget.initial?.type ?? widget.type;
 
   bool get _isEditing => widget.initial != null;
 
