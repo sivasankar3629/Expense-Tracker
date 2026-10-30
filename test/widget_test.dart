@@ -62,11 +62,11 @@ void main() {
     await tester.pumpWidget(ExpenseTrackerApp(store: store));
     await openAddExpense(tester);
 
-    await tester.ensureVisible(find.text('New account'));
+    // No cards yet, so the Card tab offers to add one, already set to card.
+    await tester.ensureVisible(find.text('Card'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('New account'));
+    await tester.tap(find.text('Card'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Credit card'));
     await tester.enterText(find.widgetWithText(TextFormField, 'Nickname'), 'HDFC Millennia');
     // The dialog's Add button sits above the form's.
     await tester.tap(find.widgetWithText(FilledButton, 'Add').last);
@@ -182,6 +182,43 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('paid-from tabs pick Cash, or the most recently used account', (tester) async {
+    final store = ExpenseStore();
+    final sbi = store.addAccount('SBI Savings', AccountType.bank);
+    final canara = store.addAccount('Canara Savings', AccountType.bank);
+    final card = store.addAccount('HDFC Millennia', AccountType.creditCard);
+    final now = DateTime.now();
+    store
+      ..addExpense(Expense(title: 'Rent', amount: 1, dateTime: now.subtract(const Duration(days: 5)), accountId: sbi.id))
+      ..addExpense(Expense(title: 'Tea', amount: 1, dateTime: now.subtract(const Duration(days: 2)), accountId: canara.id))
+      // Last used overall, so the form opens on the Card tab with it picked.
+      ..addExpense(Expense(title: 'Dinner', amount: 1, dateTime: now.subtract(const Duration(days: 9)), accountId: card.id));
+    expect(store.accountsByUse(AccountType.bank).map((a) => a.$1.nickname), ['Canara Savings', 'SBI Savings']);
+
+    await tester.pumpWidget(ExpenseTrackerApp(store: store));
+    await openAddExpense(tester);
+    await tester.ensureVisible(find.text('Your cards'));
+    await tester.pumpAndSettle();
+    expect(find.text('HDFC Millennia'), findsOneWidget);
+
+    await tester.tap(find.text('Bank'));
+    await tester.pumpAndSettle();
+    // Most recently used first, and picked.
+    expect(tester.getTopLeft(find.text('Canara Savings')).dy, lessThan(tester.getTopLeft(find.text('SBI Savings')).dy));
+    expect(find.text('Used 2 days ago'), findsOneWidget);
+
+    await tester.tap(find.text('Cash').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Physical cash'), findsOneWidget);
+
+    await tester.tap(find.text('Bank'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('SBI Savings'));
+    await tester.pumpAndSettle();
+    await fillAndSubmit(tester, 'Lunch', '200');
+    expect(store.expenses.firstWhere((e) => e.title == 'Lunch').accountId, sbi.id);
   });
 
   testWidgets('picking a category leaves the chips where they are', (tester) async {
