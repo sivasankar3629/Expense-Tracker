@@ -98,10 +98,14 @@ class SqliteStorage implements ExpenseStorage, DetectionStorage {
 
   /// Adds expenses detected from SMS, waiting for review, and which account
   /// each card or account ending belongs to. Only ever on this phone.
+  ///
+  /// This and later upgrades tolerate their tables already being there: a
+  /// phone can go back to 1.0 (which only knows version 3, and leaves these
+  /// tables alone) and then forward again.
   static Future<void> _upgradeToVersion4(Database db) async {
     final batch = db.batch()
       ..execute('''
-        CREATE TABLE sms_detected (
+        CREATE TABLE IF NOT EXISTS sms_detected (
           sms_id TEXT PRIMARY KEY,
           amount_paise INTEGER NOT NULL,
           date_time INTEGER NOT NULL,
@@ -113,7 +117,7 @@ class SqliteStorage implements ExpenseStorage, DetectionStorage {
           reference TEXT
         )''')
       ..execute('''
-        CREATE TABLE sms_account_hints (
+        CREATE TABLE IF NOT EXISTS sms_account_hints (
           hint TEXT PRIMARY KEY,
           account_id TEXT NOT NULL
         )''');
@@ -124,7 +128,7 @@ class SqliteStorage implements ExpenseStorage, DetectionStorage {
   /// the same SMS caught as it arrived brings them back.
   static Future<void> _upgradeToVersion5(Database db) async {
     await db.execute('''
-      CREATE TABLE sms_handled (
+      CREATE TABLE IF NOT EXISTS sms_handled (
         sms_id TEXT PRIMARY KEY,
         handled_at INTEGER NOT NULL
       )''');

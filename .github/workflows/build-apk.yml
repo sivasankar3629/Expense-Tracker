@@ -2,7 +2,9 @@ name: Build APK
 
 on:
   push:
-    branches: [main]
+    # A release branch, e.g. release/v1, publishes the version in pubspec.yaml
+    # as its own release.
+    branches: [main, 'release/**']
   workflow_dispatch:
 
 # Only the newest build matters; cancel older ones still running.
@@ -72,9 +74,27 @@ jobs:
           path: dist/*.apk
           retention-days: 30
 
-      # A rolling "latest" release, so the newest APK always has a
-      # direct, unzipped download link that works from a phone.
-      - name: Publish to latest release
+      # A release branch publishes its version, e.g. v1.0.0, as its own
+      # release, shown as the latest on GitHub. Pushing a fix to the branch
+      # replaces that release's APK.
+      - name: Publish version release
+        if: startsWith(github.ref, 'refs/heads/release/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)
+          TAG="v$VERSION"
+          gh release delete "$TAG" --cleanup-tag --yes || true
+          gh release create "$TAG" dist/*.apk \
+            --target "$GITHUB_SHA" \
+            --latest \
+            --title "Kipto $VERSION" \
+            --notes "Kipto $VERSION (build ${GITHUB_RUN_NUMBER}). Settings shows which version is installed."
+
+      # Everything else updates a rolling "latest" pre-release, so the newest
+      # APK always has a direct, unzipped download link that works from a phone.
+      - name: Publish to latest pre-release
+        if: ${{ !startsWith(github.ref, 'refs/heads/release/') }}
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: latest
@@ -82,5 +102,6 @@ jobs:
           gh release delete "$TAG" --cleanup-tag --yes || true
           gh release create "$TAG" dist/*.apk \
             --target "$GITHUB_SHA" \
+            --prerelease \
             --title "Build ${GITHUB_RUN_NUMBER}" \
-            --notes "Build ${GITHUB_RUN_NUMBER}, from commit ${GITHUB_SHA::7}. In the app, the ⋮ menu shows which build is installed."
+            --notes "Build ${GITHUB_RUN_NUMBER}, from commit ${GITHUB_SHA::7}. Settings shows which build is installed."
