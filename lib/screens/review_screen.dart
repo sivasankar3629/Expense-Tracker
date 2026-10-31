@@ -168,12 +168,15 @@ class _DetectedCard extends StatelessWidget {
 }
 
 /// Opens the add form filled in from [t]; saving it takes [t] off the list.
+/// The title is left for the user to type, since the payee is rarely what
+/// they'd call it ("Flipkart" for new shoes); the payee is a tap away.
 void openDetectedSpend(BuildContext context, SmsDetection detection, DetectedTransaction t) {
   ExpenseActions.addDraft(
     context,
     detection.store,
-    detection.draftFor(t),
+    detection.draftFor(t).copyWith(title: ''),
     source: '${t.senderName}: ${t.body}',
+    suggestedTitle: t.merchant,
     onSaved: (expense) => detection.added(t, expense),
   );
 }

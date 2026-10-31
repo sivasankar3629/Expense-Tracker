@@ -231,7 +231,13 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.widgetWithText(AppBar, 'Add expense'), findsOneWidget);
       expect(find.widgetWithText(TextFormField, '250'), findsOneWidget);
-      expect(find.widgetWithText(TextFormField, 'Swiggy'), findsOneWidget);
+      // The payee is only a suggestion, a tap away.
+      final title = find.widgetWithText(TextFormField, 'Title');
+      expect(tester.widget<TextFormField>(title).controller!.text, isEmpty);
+      await tester.tap(find.byTooltip('Use Swiggy'));
+      await tester.pump();
+      expect(tester.widget<TextFormField>(title).controller!.text, 'Swiggy');
+      expect(find.byTooltip('Use Swiggy'), findsNothing);
 
       await tester.tap(find.widgetWithText(FilledButton, 'Add'));
       await tester.pumpAndSettle();
