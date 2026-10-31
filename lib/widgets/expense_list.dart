@@ -25,25 +25,17 @@ class ExpenseActions {
   }
 
   /// Opens the add form filled in from [draft]; [onSaved] hears if it's kept.
-  /// A [draft] without a title starts with the title field focused, and
-  /// [suggestedTitle] a tap away.
+  /// A [draft] without a title starts with the title field focused.
   static void addDraft(
     BuildContext context,
     ExpenseStore store,
     Expense draft, {
     String? source,
-    String? suggestedTitle,
     ValueChanged<Expense>? onSaved,
   }) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ExpenseFormScreen(
-          store: store,
-          draft: draft,
-          draftSource: source,
-          suggestedTitle: suggestedTitle,
-          onSaved: onSaved,
-        ),
+        builder: (_) => ExpenseFormScreen(store: store, draft: draft, draftSource: source, onSaved: onSaved),
       ),
     );
   }

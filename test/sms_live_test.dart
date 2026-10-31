@@ -216,11 +216,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.widgetWithText(AppBar, 'Add expense'), findsOneWidget);
       expect(find.widgetWithText(TextFormField, '649'), findsOneWidget);
-      // Everything but the title: that field waits, keyboard up, with the payee as its hint.
+      // Everything but the title: that field waits, empty, keyboard up.
       final title = find.descendant(of: find.widgetWithText(TextFormField, 'Title'), matching: find.byType(EditableText));
       expect(tester.widget<EditableText>(title).focusNode.hasFocus, isTrue);
       expect(tester.widget<EditableText>(title).controller.text, isEmpty);
-      expect(find.text('Swiggy'), findsOneWidget);
 
       await tester.enterText(title, 'Biryani');
       await tester.tap(find.widgetWithText(FilledButton, 'Add'));

@@ -21,7 +21,6 @@ class ExpenseFormScreen extends StatefulWidget {
     this.initialCategoryId,
     this.draft,
     this.draftSource,
-    this.suggestedTitle,
     this.onSaved,
   });
 
@@ -33,10 +32,6 @@ class ExpenseFormScreen extends StatefulWidget {
 
   /// Where [draft] came from, shown above the form, e.g. the SMS text.
   final String? draftSource;
-
-  /// A title offered for a [draft] that has none, e.g. the payee in the SMS:
-  /// shown as the hint and filled in with a tap.
-  final String? suggestedTitle;
 
   /// Called with the expense once it's saved.
   final ValueChanged<Expense>? onSaved;
@@ -218,34 +213,17 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                           },
                         ),
                         const SizedBox(height: 16),
-                        ValueListenableBuilder(
-                          valueListenable: _titleController,
-                          builder: (context, value, _) {
-                            final suggestion = widget.suggestedTitle;
-                            return TextFormField(
-                              controller: _titleController,
-                              autofocus: _titleFirst,
-                              textCapitalization: TextCapitalization.sentences,
-                              textInputAction: TextInputAction.next,
-                              decoration: InputDecoration(
-                                labelText: 'Title',
-                                hintText: suggestion,
-                                prefixIcon: const Icon(Icons.edit_outlined),
-                                suffixIcon: suggestion == null || value.text.isNotEmpty
-                                    ? null
-                                    : IconButton(
-                                        tooltip: 'Use $suggestion',
-                                        icon: const Icon(Icons.north_west),
-                                        onPressed: () => _titleController.value = TextEditingValue(
-                                          text: suggestion,
-                                          selection: TextSelection.collapsed(offset: suggestion.length),
-                                        ),
-                                      ),
-                              ),
-                              validator: (value) =>
-                                  (value == null || value.trim().isEmpty) ? 'Enter a title' : null,
-                            );
-                          },
+                        TextFormField(
+                          controller: _titleController,
+                          autofocus: _titleFirst,
+                          textCapitalization: TextCapitalization.sentences,
+                          textInputAction: TextInputAction.next,
+                          decoration: const InputDecoration(
+                            labelText: 'Title',
+                            prefixIcon: Icon(Icons.edit_outlined),
+                          ),
+                          validator: (value) =>
+                              (value == null || value.trim().isEmpty) ? 'Enter a title' : null,
                         ),
                         const SizedBox(height: 16),
                         CategoryPicker(
