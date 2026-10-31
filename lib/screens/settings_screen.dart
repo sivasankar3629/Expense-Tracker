@@ -77,7 +77,17 @@ class SettingsScreen extends StatelessWidget {
               ),
               if (detection case final detection?) ...[
                 const SectionHeader(title: 'Automatic'),
-                Card(child: _SmsDetectionTile(detection: detection)),
+                Card(
+                  child: Column(
+                    children: [
+                      _SmsDetectionTile(detection: detection),
+                      if (detection.enabled) ...[
+                        const Divider(indent: 72),
+                        _RcsTile(detection: detection),
+                      ],
+                    ],
+                  ),
+                ),
               ],
               const SectionHeader(title: 'Your data'),
               Card(
@@ -289,6 +299,106 @@ class _SmsDetectionTile extends StatelessWidget {
                 MaterialPageRoute(builder: (_) => ReviewScreen(detection: detection)),
               )
           : () => _toggle(context, true),
+    );
+  }
+}
+
+/// RCS messages, which never arrive as SMS: caught from the messaging app's
+/// notifications once Android's notification access is allowed.
+class _RcsTile extends StatelessWidget {
+  const _RcsTile({required this.detection});
+
+  final SmsDetection detection;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final on = detection.notificationAccess;
+    return ListTile(
+      contentPadding: const EdgeInsets.fromLTRB(16, 4, 12, 4),
+      leading: const _TileIcon(Icons.mark_chat_unread_outlined),
+      title: const Text('Catch RCS messages too'),
+      subtitle: Text(on
+          ? 'On · reads new messages in their notifications'
+          : 'Some banks send chats instead of SMS. Kipto can read them from their notifications.'),
+      isThreeLine: !on,
+      trailing: on
+          ? Icon(Icons.check_circle, color: scheme.primary)
+          : FilledButton.tonal(onPressed: () => _explain(context), child: const Text('Allow')),
+      // Turning it off is in the same place in Android's settings.
+      onTap: on ? detection.source.openNotificationAccessSettings : () => _explain(context),
+    );
+  }
+
+  Future<void> _explain(BuildContext context) => showModalBottomSheet<void>(
+        context: context,
+        showDragHandle: true,
+        isScrollControlled: true,
+        builder: (sheetContext) {
+          final source = detection.source;
+          return _SheetFrame(
+            title: 'Catch RCS messages',
+            message: 'Apps can’t read RCS chats, but they show up in your messages app’s notifications. '
+                'Kipto looks only at those, only for spends, and nothing leaves this phone.',
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _Step(
+                    number: 1,
+                    title: 'Turn on Kipto under Notification access',
+                    action: 'Open',
+                    onPressed: () {
+                      Navigator.of(sheetContext).pop();
+                      source.openNotificationAccessSettings();
+                    },
+                  ),
+                  _Step(
+                    number: 2,
+                    title: 'Switch greyed out?',
+                    detail: 'Android holds it back for apps from outside the Play Store. '
+                        'In App info, tap ⋮ › Allow restricted settings, then do step 1 again.',
+                    action: 'App info',
+                    onPressed: source.openAppSettings,
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+}
+
+class _Step extends StatelessWidget {
+  const _Step({
+    required this.number,
+    required this.title,
+    this.detail,
+    required this.action,
+    required this.onPressed,
+  });
+
+  final int number;
+  final String title;
+  final String? detail;
+  final String action;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+      leading: CircleAvatar(
+        radius: 14,
+        backgroundColor: scheme.primaryContainer,
+        foregroundColor: scheme.onPrimaryContainer,
+        child: Text('$number', style: const TextStyle(fontWeight: FontWeight.w700)),
+      ),
+      title: Text(title),
+      subtitle: detail == null ? null : Text(detail!),
+      trailing: OutlinedButton(onPressed: onPressed, child: Text(action)),
     );
   }
 }

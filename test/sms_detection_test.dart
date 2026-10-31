@@ -23,6 +23,8 @@ class FakeSmsSource implements SmsSource {
   final List<SmsMessage> messages = [];
   DateTime? lastSince;
   bool livePermissionAsked = false;
+  bool notificationAccess = false;
+  int notificationSettingsOpened = 0;
   final arrivalsController = StreamController<SmsMessage>.broadcast();
 
   @override
@@ -42,6 +44,12 @@ class FakeSmsSource implements SmsSource {
     lastSince = since;
     return [for (final m in messages) if (m.date.isAfter(since)) m]..sort((a, b) => b.date.compareTo(a.date));
   }
+
+  @override
+  Future<bool> hasNotificationAccess() async => notificationAccess;
+
+  @override
+  Future<void> openNotificationAccessSettings() async => notificationSettingsOpened++;
 
   @override
   Future<void> openAppSettings() async {}
@@ -243,6 +251,32 @@ void main() {
       await tester.pumpAndSettle();
       expect(detection.enabled, isFalse);
       expect(find.textContaining('needs SMS access'), findsOneWidget);
+    });
+
+    testWidgets('Settings offers to catch RCS messages once detection is on', (tester) async {
+      final store = ExpenseStore();
+      final source = FakeSmsSource();
+      final detection = detectionFor(store, source);
+      await tester.pumpWidget(ExpenseTrackerApp(store: store, detection: detection));
+      await tester.tap(find.byTooltip('Settings'));
+      await tester.pumpAndSettle();
+      expect(find.text('Catch RCS messages too'), findsNothing);
+
+      await tester.tap(find.byType(Switch));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Allow'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Allow restricted settings'), findsOneWidget);
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Open'));
+      await tester.pumpAndSettle();
+      expect(source.notificationSettingsOpened, 1);
+
+      // Allowed in Android's settings; noticed on coming back.
+      source.notificationAccess = true;
+      await detection.refreshNotificationAccess();
+      await tester.pumpAndSettle();
+      expect(find.textContaining('reads new messages'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Allow'), findsNothing);
     });
   });
 }

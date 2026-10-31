@@ -38,6 +38,7 @@ class SmsDetection extends ChangeNotifier {
   final DateTime Function() _clock;
 
   bool _enabled = false;
+  bool _notificationAccess = false;
   DateTime? _scannedUntil;
   final List<DetectedTransaction> _pending = [];
   final Map<String, String> _accountHints = {};
@@ -69,6 +70,24 @@ class SmsDetection extends ChangeNotifier {
 
   bool get enabled => _enabled;
 
+  /// Whether RCS messages can be caught too, through the messaging app's
+  /// notifications; see [SmsSource.hasNotificationAccess].
+  bool get notificationAccess => _notificationAccess;
+
+  /// Checks again, e.g. on coming back from Android's settings.
+  Future<void> refreshNotificationAccess() async {
+    final bool access;
+    try {
+      access = await source.hasNotificationAccess();
+    } catch (e, stack) {
+      debugPrint('Could not check notification access: $e\n$stack');
+      return;
+    }
+    if (access == _notificationAccess) return;
+    _notificationAccess = access;
+    notifyListeners();
+  }
+
   /// Newest first.
   List<DetectedTransaction> get pending => List.unmodifiable(_pending);
 
@@ -87,12 +106,15 @@ class SmsDetection extends ChangeNotifier {
     _lifecycle ??= AppLifecycleListener(onResume: () => unawaited(_catchUp()));
     _arrivals ??= source.arrivals.listen((sms) => unawaited(receive(sms)));
     if (_enabled) unawaited(_ensureLiveAccess());
+    unawaited(refreshNotificationAccess());
     unawaited(scan());
   }
 
   /// While the app was away, SMS that arrived were handled in the background
   /// and notification buttons may have been tapped: pick those up, then scan.
+  /// Notification access may have been changed in Android's settings too.
   Future<void> _catchUp() async {
+    unawaited(refreshNotificationAccess());
     await reload();
     await scan();
   }

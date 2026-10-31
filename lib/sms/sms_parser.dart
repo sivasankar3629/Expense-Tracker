@@ -1,7 +1,9 @@
-/// Names an SMS by who sent it and what it says, so the same message read
-/// from the inbox and caught as it arrived is recognised as one.
-String smsFingerprint(String sender, String body) {
-  final text = '$sender\n$body';
+/// Names a message by what it says, so the same one read from the inbox,
+/// caught as it arrived and seen in its notification is recognised as one.
+/// Not by who sent it: a notification names a bank "SBI Card" where the
+/// inbox says "JD-SBICRD-S".
+String smsFingerprint(String body) {
+  final text = body.trim().replaceAll(RegExp(r'\s+'), ' ');
   // FNV-1a, kept to 32 bits so it's the same wherever it runs.
   var hash = 0x811c9dc5;
   for (final unit in text.codeUnits) {
@@ -13,11 +15,12 @@ String smsFingerprint(String sender, String body) {
 /// One SMS as read from the phone's inbox, or as it arrived.
 class SmsMessage {
   SmsMessage({String? id, required this.sender, required this.body, required this.date})
-      : id = id ?? smsFingerprint(sender, body);
+      : id = id ?? smsFingerprint(body);
 
   final String id;
 
-  /// e.g. "VM-HDFCBK", or a phone number for personal messages.
+  /// e.g. "VM-HDFCBK", a phone number for personal messages, or a name like
+  /// "SBI Card" when read from a notification.
   final String sender;
   final String body;
   final DateTime date;

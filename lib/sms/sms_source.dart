@@ -22,12 +22,20 @@ abstract interface class SmsSource {
   /// SMS arriving while the app is running.
   Stream<SmsMessage> get arrivals;
 
+  /// Whether messages can be read from the messaging app's notifications.
+  /// RCS chats, which some banks now send instead of SMS, are only seen there.
+  Future<bool> hasNotificationAccess();
+
+  /// Android's notification access switch for Kipto.
+  Future<void> openNotificationAccessSettings();
+
   /// For when the permission was refused for good and must be turned on there.
   Future<void> openAppSettings();
 }
 
-/// Reads the inbox and hears new SMS through MainActivity.kt; SmsReceiver.kt
-/// handles those that arrive while the app isn't running.
+/// Reads the inbox and hears new messages through MainActivity.kt;
+/// SmsReceiver.kt and MessageNotificationListener.kt catch them as they
+/// arrive, even while the app isn't running.
 class AndroidSmsSource implements SmsSource {
   AndroidSmsSource() {
     _channel.setMethodCallHandler((call) async {
@@ -73,6 +81,13 @@ class AndroidSmsSource implements SmsSource {
   Stream<SmsMessage> get arrivals => _arrivals.stream;
 
   @override
+  Future<bool> hasNotificationAccess() async =>
+      await _channel.invokeMethod<bool>('hasNotificationAccess') ?? false;
+
+  @override
+  Future<void> openNotificationAccessSettings() => _channel.invokeMethod<void>('openNotificationAccessSettings');
+
+  @override
   Future<void> openAppSettings() => _channel.invokeMethod<void>('openAppSettings');
 }
 
@@ -95,6 +110,12 @@ class NoSmsSource implements SmsSource {
 
   @override
   Stream<SmsMessage> get arrivals => const Stream.empty();
+
+  @override
+  Future<bool> hasNotificationAccess() async => false;
+
+  @override
+  Future<void> openNotificationAccessSettings() async {}
 
   @override
   Future<void> openAppSettings() async {}

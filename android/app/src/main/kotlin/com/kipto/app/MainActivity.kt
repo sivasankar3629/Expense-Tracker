@@ -1,11 +1,16 @@
 package com.kipto.app
 
 import android.Manifest
+import android.app.NotificationManager
+import android.content.ActivityNotFoundException
+import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import android.provider.Telephony
+import android.service.notification.NotificationListenerService
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -27,6 +32,13 @@ class MainActivity : FlutterActivity() {
                     if (hasSmsPermission() && !isGranted(Manifest.permission.RECEIVE_SMS)) {
                         requestPermissions(arrayOf(Manifest.permission.RECEIVE_SMS), LIVE_PERMISSION_REQUEST)
                     }
+                    // Some phones unbind listeners they've stopped; ask for it back.
+                    if (hasNotificationAccess()) NotificationListenerService.requestRebind(messageListener())
+                    result.success(null)
+                }
+                "hasNotificationAccess" -> result.success(hasNotificationAccess())
+                "openNotificationAccessSettings" -> {
+                    openNotificationAccessSettings()
                     result.success(null)
                 }
                 "inbox" -> readInbox(call.argument<Number>("since")?.toLong() ?: 0L, result)
@@ -49,6 +61,33 @@ class MainActivity : FlutterActivity() {
     private fun isGranted(permission: String) = checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
 
     private fun hasSmsPermission() = isGranted(Manifest.permission.READ_SMS)
+
+    private fun messageListener() = ComponentName(this, MessageNotificationListener::class.java)
+
+    /** Whether [MessageNotificationListener] may read notifications, for RCS messages. */
+    private fun hasNotificationAccess(): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            return getSystemService(NotificationManager::class.java).isNotificationListenerAccessGranted(messageListener())
+        }
+        val enabled = Settings.Secure.getString(contentResolver, "enabled_notification_listeners") ?: return false
+        return messageListener().flattenToString() in enabled.split(':')
+    }
+
+    /** Kipto's own switch where the phone has one, else the list of apps. */
+    private fun openNotificationAccessSettings() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            try {
+                startActivity(
+                    Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS)
+                        .putExtra(Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME, messageListener().flattenToString()),
+                )
+                return
+            } catch (e: ActivityNotFoundException) {
+                // Falls through to the list.
+            }
+        }
+        startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+    }
 
     private fun requestSmsPermission(result: MethodChannel.Result) {
         if (hasSmsPermission()) {
@@ -115,8 +154,8 @@ class MainActivity : FlutterActivity() {
         private const val LIVE_PERMISSION_REQUEST = 4218
 
         /**
-         * The running app's SMS channel, while it has one; SmsReceiver hands
-         * new SMS to it rather than starting Flutter in the background.
+         * The running app's SMS channel, while it has one; MessageHandoff gives
+         * new messages to it rather than starting Flutter in the background.
          */
         @Volatile
         var liveChannel: MethodChannel? = null

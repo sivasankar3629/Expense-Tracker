@@ -57,12 +57,56 @@ Future<SmsDetection> enabledDetection({
 }
 
 void main() {
-  test('the same SMS read from the inbox and caught as it arrived is one SMS', () {
+  test('the same SMS read from the inbox, caught as it arrived and seen in its notification is one SMS', () {
     final live = arrived(swiggyBody);
     final fromInbox = SmsMessage(sender: 'VM-HDFCBK', body: swiggyBody, date: now.add(const Duration(seconds: 3)));
     expect(live.id, fromInbox.id);
+    // A notification names the bank, and may lay the text out a little differently.
+    expect(arrived(' ${swiggyBody.replaceFirst(' ', '\n')} ', sender: 'HDFC Bank').id, live.id);
     expect(arrived('$swiggyBody.').id, isNot(live.id));
-    expect(arrived(swiggyBody, sender: 'AX-HDFCBK').id, isNot(live.id));
+  });
+
+  group('An RCS message, read from its notification', () {
+    const flipkart = 'Rs.3,265.00 spent on your SBI Credit Card ending 4913 at FLIPKARTINTERNETPVTLTD on 31/10/26. '
+        'Trxn. not done by you? Report at https://sbicard.com/Dispute';
+
+    test('is a spend like any SMS, named after the sender the notification shows', () async {
+      final notifier = FakeNotifier();
+      final detection = await enabledDetection(notifier: notifier);
+      final t = (await detection.receive(arrived(flipkart, sender: 'SBI Card')))!;
+      expect((t.amount, t.accountHint, t.isCard), (3265.0, '4913', true));
+      expect(notifier.shown[t.smsId]?.body, 'SBI Card card ••4913 · Add it to Kipto?');
+    });
+
+    test('once added, doesn’t come back when the same message is in the SMS inbox', () async {
+      final source = FakeSmsSource();
+      final store = ExpenseStore();
+      final detection = await enabledDetection(store: store, source: source);
+      final t = (await detection.receive(arrived(flipkart, sender: 'SBI Card', ago: const Duration(minutes: 5))))!;
+      detection.added(t, detection.draftFor(t));
+
+      source.messages.add(SmsMessage(sender: 'JD-SBICRD-S', body: flipkart, date: now.subtract(const Duration(minutes: 4))));
+      expect(await detection.scan(), 0);
+      expect(detection.pending, isEmpty);
+    });
+  });
+
+  test('notification access is checked on start and noticed when it changes', () async {
+    final source = FakeSmsSource();
+    final detection = await enabledDetection(source: source);
+    var changes = 0;
+    detection.addListener(() => changes++);
+
+    detection.startAutoScan();
+    await pumpEventQueue();
+    expect(detection.notificationAccess, isFalse);
+
+    source.notificationAccess = true;
+    await detection.refreshNotificationAccess();
+    expect(detection.notificationAccess, isTrue);
+    final afterChange = changes;
+    await detection.refreshNotificationAccess();
+    expect(changes, afterChange, reason: 'nothing changed, so nothing to redraw');
   });
 
   test('notification text: amount and payee, then where it was paid from', () {
