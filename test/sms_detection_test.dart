@@ -126,14 +126,22 @@ void main() {
   });
 
   group('Adding', () {
-    test('fills in the form, remembering the category and the card for next time', () async {
+    test('fills in the form with the most used account and category, and the card once it’s known', () async {
       final store = ExpenseStore();
       final food = store.addCategory(name: 'Food', iconKey: 'food', colorValue: 0xFFE53935);
+      final shopping = store.addCategory(name: 'Shopping', iconKey: 'shopping', colorValue: 0xFF1E88E5);
       final card = store.addAccount('HDFC Millennia', AccountType.creditCard);
-      store.addExpense(Expense(
-        title: 'Swiggy', amount: 300, dateTime: now.subtract(const Duration(days: 5)),
-        accountId: 'cash', categoryId: food.id,
-      ));
+      final bank = store.addAccount('SBI Savings', AccountType.bank);
+      store
+        ..addExpense(Expense(
+          title: 'Swiggy', amount: 300, dateTime: now.subtract(const Duration(days: 5)),
+          accountId: 'cash', categoryId: food.id,
+        ))
+        // Most used: not what this payee was last time, but what's picked by default.
+        ..addExpense(Expense(title: 'Shoes', amount: 900, dateTime: now.subtract(const Duration(days: 4)),
+            accountId: bank.id, categoryId: shopping.id))
+        ..addExpense(Expense(title: 'Shirt', amount: 700, dateTime: now.subtract(const Duration(days: 3)),
+            accountId: bank.id, categoryId: shopping.id));
       final source = FakeSmsSource()
         ..messages.addAll([
           sms('1', 'Spent Rs.250 On HDFC Bank Card 5678 At SWIGGY', ago: const Duration(hours: 2)),
@@ -147,7 +155,8 @@ void main() {
       expect(draft.title, 'Swiggy');
       expect(draft.amount, 250);
       expect(draft.dateTime, swiggy.date);
-      expect(draft.categoryId, food.id);
+      expect(draft.categoryId, shopping.id);
+      expect(draft.accountId, bank.id, reason: 'card 5678 isn’t known yet');
 
       // The user picks the card for it…
       final saved = draft.copyWith(accountId: card.id);

@@ -57,9 +57,12 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
   late DateTime _date = DateUtils.dateOnly(_prefill?.dateTime ?? DateTime.now());
   late TimeOfDay _time = TimeOfDay.fromDateTime(_prefill?.dateTime ?? DateTime.now());
   late Account _account = _initialAccount();
-  // Dropped if the category has since been deleted.
-  late String? _categoryId =
-      widget.store.categoryById(_prefill?.categoryId ?? widget.initialCategoryId)?.id;
+  // A new expense starts in the most used category, unless it's added from a
+  // category's screen. Dropped if the category has since been deleted.
+  late String? _categoryId = widget.store.categoryById(switch (_prefill) {
+    null => widget.initialCategoryId ?? widget.store.mostUsedCategory?.id,
+    final prefill => prefill.categoryId,
+  })?.id;
 
   bool get _isEditing => widget.initial != null;
 
@@ -69,7 +72,7 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
 
   Account _initialAccount() {
     final prefill = _prefill;
-    if (prefill == null) return widget.store.lastUsedAccount;
+    if (prefill == null) return widget.store.mostUsedAccount;
     return widget.store.accountById(prefill.accountId) ?? Account.cash;
   }
 

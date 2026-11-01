@@ -66,10 +66,11 @@ void main() {
       await tester.ensureVisible(find.widgetWithText(TextFormField, 'Title'));
       await tester.enterText(find.widgetWithText(TextFormField, 'Title'), 'Layout lunch');
 
+      // Food is the most used, so it's already picked.
       final foodChip = find.widgetWithText(FilterChip, 'Food');
       await tester.ensureVisible(foodChip);
       await tester.pumpAndSettle();
-      await tester.tap(foodChip);
+      expect(tester.widget<FilterChip>(foodChip).selected, isTrue);
       // Picking the Bank tab picks its only account.
       final bankTab = find.text('Bank');
       await tester.ensureVisible(bankTab);

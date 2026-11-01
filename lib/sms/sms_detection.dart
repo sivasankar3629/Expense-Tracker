@@ -246,30 +246,17 @@ class SmsDetection extends ChangeNotifier {
   }
 
   /// Fills in the add form: the amount, date and payee from the SMS, the
-  /// account from its card or account ending, and the category (and, if
-  /// the ending is new, the account) last used for the same payee.
+  /// account its card or account ending belongs to, and otherwise the same
+  /// account and category as a new expense by hand: the most used.
   Expense draftFor(DetectedTransaction t) {
-    final title = t.merchant ?? (t.isCard ? 'Card payment' : 'Payment');
-    final previous = _lastExpenseTitled(title);
-    final hinted = t.accountHint == null ? null : store.accountById(_accountHints[t.accountHint] ?? '');
-    final account = hinted ??
-        (previous == null ? null : store.accountById(previous.accountId)) ??
-        store.lastUsedAccount;
+    final hinted = accountFor(t);
     return Expense(
-      title: title,
+      title: t.merchant ?? (t.isCard ? 'Card payment' : 'Payment'),
       amount: t.amount,
       dateTime: t.date,
-      accountId: account.id,
-      categoryId: store.categoryById(previous?.categoryId)?.id,
+      accountId: (hinted ?? store.mostUsedAccount).id,
+      categoryId: store.mostUsedCategory?.id,
     );
-  }
-
-  Expense? _lastExpenseTitled(String title) {
-    final wanted = title.toLowerCase();
-    for (final e in store.expenses) {
-      if (e.title.toLowerCase() == wanted) return e;
-    }
-    return null;
   }
 
   /// An expense already in the app that looks like this one, e.g. added by

@@ -105,8 +105,31 @@ class ExpenseStore extends ChangeNotifier {
     return null;
   }
 
-  /// Pre-selected when adding an expense, since people tend to pay the same way.
+  /// The account of the expense added last.
   Account get lastUsedAccount => accountById(_lastUsedAccountId) ?? Account.cash;
+
+  /// Pre-selected when adding an expense, since people tend to pay the same
+  /// way: the account paid from most often, Cash before the first expense.
+  Account get mostUsedAccount =>
+      accountById(_mostCommon([for (final e in _expenses) e.accountId]) ?? '') ?? Account.cash;
+
+  /// Pre-selected when adding an expense: the category used most often, or
+  /// none before any expense has one.
+  ExpenseCategory? get mostUsedCategory =>
+      categoryById(_mostCommon([for (final e in _expenses) ?e.categoryId]));
+
+  /// The id that appears most in [ids], newest first; on a tie, the newest.
+  static String? _mostCommon(List<String> ids) {
+    final counts = <String, int>{};
+    for (final id in ids) {
+      counts[id] = (counts[id] ?? 0) + 1;
+    }
+    String? best;
+    for (final id in ids) {
+      if (best == null || counts[id]! > counts[best]!) best = id;
+    }
+    return best;
+  }
 
   void addExpense(Expense expense) {
     _insert(expense);

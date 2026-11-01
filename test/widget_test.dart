@@ -184,7 +184,7 @@ void main() {
     );
   });
 
-  testWidgets('paid-from tabs pick Cash, or the most recently used account', (tester) async {
+  testWidgets('paid-from tabs pick Cash, or the most recently used account of that kind', (tester) async {
     final store = ExpenseStore();
     final sbi = store.addAccount('SBI Savings', AccountType.bank);
     final canara = store.addAccount('Canara Savings', AccountType.bank);
@@ -193,8 +193,9 @@ void main() {
     store
       ..addExpense(Expense(title: 'Rent', amount: 1, dateTime: now.subtract(const Duration(days: 5)), accountId: sbi.id))
       ..addExpense(Expense(title: 'Tea', amount: 1, dateTime: now.subtract(const Duration(days: 2)), accountId: canara.id))
-      // Last used overall, so the form opens on the Card tab with it picked.
-      ..addExpense(Expense(title: 'Dinner', amount: 1, dateTime: now.subtract(const Duration(days: 9)), accountId: card.id));
+      // Most used overall, so the form opens on the Card tab with it picked.
+      ..addExpense(Expense(title: 'Dinner', amount: 1, dateTime: now.subtract(const Duration(days: 9)), accountId: card.id))
+      ..addExpense(Expense(title: 'Snacks', amount: 1, dateTime: now.subtract(const Duration(days: 12)), accountId: card.id));
     expect(store.accountsByUse(AccountType.bank).map((a) => a.$1.nickname), ['Canara Savings', 'SBI Savings']);
 
     await tester.pumpWidget(ExpenseTrackerApp(store: store));
