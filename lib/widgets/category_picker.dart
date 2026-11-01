@@ -7,7 +7,8 @@ import 'category_style.dart';
 
 /// Wrapping category chips, most-used first, with "New category" at the end.
 /// Chips stay put when picked, so the one you tapped is where you left it.
-/// Tapping the selected chip again clears it, since a category is optional.
+/// A new expense often starts with one picked, so tapping it again keeps it;
+/// its ✕ clears it, since a category is optional.
 class CategoryPicker extends StatelessWidget {
   const CategoryPicker({
     super.key,
@@ -53,7 +54,8 @@ class CategoryPicker extends StatelessWidget {
                   _CategoryChip(
                     category: category,
                     selected: category.id == selectedId,
-                    onTap: () => onChanged(category.id == selectedId ? null : category.id),
+                    onTap: () => onChanged(category.id),
+                    onClear: () => onChanged(null),
                   ),
                 ],
                 ActionChip(
@@ -71,11 +73,17 @@ class CategoryPicker extends StatelessWidget {
 }
 
 class _CategoryChip extends StatelessWidget {
-  const _CategoryChip({required this.category, required this.selected, required this.onTap});
+  const _CategoryChip({
+    required this.category,
+    required this.selected,
+    required this.onTap,
+    required this.onClear,
+  });
 
   final ExpenseCategory category;
   final bool selected;
   final VoidCallback onTap;
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
@@ -95,6 +103,9 @@ class _CategoryChip extends StatelessWidget {
       labelStyle: Theme.of(context).textTheme.labelLarge?.copyWith(color: ink, fontWeight: FontWeight.w700),
       side: BorderSide(color: selected ? color : color.withValues(alpha: 0.25)),
       onSelected: (_) => onTap(),
+      onDeleted: selected ? onClear : null,
+      deleteIcon: Icon(Icons.close_rounded, size: 18, color: ink),
+      deleteButtonTooltipMessage: 'No category',
     );
   }
 }

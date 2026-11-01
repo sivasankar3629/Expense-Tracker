@@ -240,18 +240,29 @@ void main() {
     expect(find.descendant(of: travel, matching: find.byIcon(Icons.check_rounded)), findsOneWidget);
   });
 
-  testWidgets('tapping the selected category clears it', (tester) async {
-    final store = ExpenseStore()..addCategory(name: 'Food', iconKey: 'food', colorValue: 0xFFE53935);
+  testWidgets('tapping the selected category keeps it; its ✕ clears it', (tester) async {
+    final store = ExpenseStore();
+    final food = store.addCategory(name: 'Food', iconKey: 'food', colorValue: 0xFFE53935);
     await tester.pumpWidget(ExpenseTrackerApp(store: store));
     await openAddExpense(tester);
+    expect(find.byTooltip('No category'), findsNothing);
 
+    // Tapped twice, as from habit when it's already picked.
     await tester.tap(find.widgetWithText(FilterChip, 'Food'));
     await tester.pump();
     await tester.tap(find.widgetWithText(FilterChip, 'Food'));
     await tester.pump();
     await fillAndSubmit(tester, 'Tea', '12');
+    expect(store.expenses.single.categoryId, food.id);
 
-    expect(store.expenses.single.categoryId, isNull);
+    // Next time Food starts picked; the ✕ is how to leave it out.
+    await openAddExpense(tester);
+    await tester.tap(find.byTooltip('No category'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<FilterChip>(find.widgetWithText(FilterChip, 'Food')).selected, isFalse);
+    expect(find.byTooltip('No category'), findsNothing);
+    await fillAndSubmit(tester, 'Coffee', '20');
+    expect(store.expenses.firstWhere((e) => e.title == 'Coffee').categoryId, isNull);
   });
 
   testWidgets('categories can be managed from settings', (tester) async {
