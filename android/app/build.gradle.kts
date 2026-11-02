@@ -47,6 +47,11 @@ android {
             keyPassword = keystoreProperties["keyPassword"] as String?
             storeFile = (keystoreProperties["storeFile"] as String?)?.let { file(it) }
             storePassword = keystoreProperties["storePassword"] as String?
+            // Android doesn't need the old JAR signature from 7.0 on, so it's
+            // left out by default; Xiaomi's installer rejects the APK without
+            // it ("package appears to be invalid").
+            enableV1Signing = true
+            enableV2Signing = true
         }
     }
 
