@@ -216,6 +216,18 @@ void main() {
     await storage.close();
   });
 
+  test('a spend waiting since before a parser fix shows the fixed payee', () {
+    const body = 'INR 20.00 spent at UPI/MATHAJI STORE 1 on AU Bank Credit Card x2490 01-11-2026 03:13:54 PM.';
+    final waiting = DetectedTransaction(
+      smsId: 'au', amount: 20, date: now, sender: 'JM-AUBANK-S', body: body,
+      merchant: 'Au B', accountHint: '2490', isCard: true,
+    );
+    final detection = detectionFor(ExpenseStore(), FakeSmsSource(),
+        data: DetectionData(enabled: true, pending: [waiting]));
+    final t = detection.pending.single;
+    expect((t.smsId, t.merchant, t.amount, t.accountHint), ('au', 'Mathaji Store', 20.0, '2490'));
+  });
+
   group('Screens', () {
     testWidgets('Home shows what to review; Add opens the form filled in', (tester) async {
       final store = ExpenseStore();

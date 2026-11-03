@@ -53,7 +53,7 @@ class SmsDetection extends ChangeNotifier {
     _scannedUntil = data.scannedUntil;
     _pending
       ..clear()
-      ..addAll(data.pending)
+      ..addAll(data.pending.map(_withPayeeReadAgain))
       ..sort(_newestFirst);
     _accountHints
       ..clear()
@@ -61,6 +61,24 @@ class SmsDetection extends ChangeNotifier {
     _handled
       ..clear()
       ..addAll(data.handledIds);
+  }
+
+  /// The payee as the parser reads it now, so a spend waiting since before a
+  /// fix to the parser shows the fixed name.
+  static DetectedTransaction _withPayeeReadAgain(DetectedTransaction t) {
+    final merchant = parseBankSms(SmsMessage(id: t.smsId, sender: t.sender, body: t.body, date: t.date))?.merchant;
+    if (merchant == null || merchant == t.merchant) return t;
+    return DetectedTransaction(
+      smsId: t.smsId,
+      amount: t.amount,
+      date: t.date,
+      sender: t.sender,
+      body: t.body,
+      merchant: merchant,
+      accountHint: t.accountHint,
+      isCard: t.isCard,
+      reference: t.reference,
+    );
   }
 
   /// How far back the first scan looks.

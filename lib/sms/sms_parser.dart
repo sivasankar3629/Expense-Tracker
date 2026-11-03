@@ -119,6 +119,9 @@ final _creditedPayee = RegExp(r';\s*([A-Za-z][\w .&' "'" r'-]{1,40}?)\s+credited
 /// Some cards: "…spent … on BOOKMYSHOW."
 final _onPayee = RegExp(r'\bon\s+([A-Z][A-Z0-9 &.' "'" r'*-]{2,40})', caseSensitive: true);
 
+/// How the payment went, ahead of the payee: "at UPI/MATHAJI STORE".
+final _channelPrefix = RegExp(r'^(?:upi|pos|imps|neft|ecom|vps)\s*[/-]\s*', caseSensitive: false);
+
 final _payeeEnd = RegExp(
   r'\s+(?:on|via|ref\w*|upi|avl|avbl|txn|using|for|not|if|from|by|is|has|with|bal|and|info|call|sms|rrn|utr)\b|[.,;:()\n]|\s+-|\s{2,}|\s+\d',
   caseSensitive: false,
@@ -199,6 +202,10 @@ String? _payeeOf(String body) {
     if (name != null) return name;
   }
   for (final match in _onPayee.allMatches(body)) {
+    // Capitals that run straight into a word, like "AU B" in "on AU Bank",
+    // aren't a name; "BOOKMYSHOW. Avl" is, as the full stop ends it.
+    final runsOn = match.end < body.length && RegExp('[a-z]').hasMatch(body[match.end]);
+    if (runsOn && !_payeeEnd.hasMatch(match.group(1)!)) continue;
     final name = _cleanPayee(match.group(1)!);
     if (name != null) return name;
   }
@@ -214,7 +221,7 @@ String? _nameFromVpa(String handle) {
 }
 
 String? _cleanPayee(String raw) {
-  var name = raw;
+  var name = raw.replaceFirst(_channelPrefix, '');
   final end = _payeeEnd.firstMatch(name);
   if (end != null) name = name.substring(0, end.start);
   name = name.replaceAll(RegExp(r'\s+'), ' ').replaceAll(RegExp(r'^[*/\s-]+|[*/\s.-]+$'), '').trim();

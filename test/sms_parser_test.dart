@@ -94,6 +94,17 @@ void main() {
         '₹349 paid to Zomato from your account ending 1234. UPI Ref: 430212345678',
         349, 'Zomato', '1234', false,
       ),
+      (
+        'card, "at UPI/NAME", then "on … Bank Credit Card"',
+        'INR 20.00 spent at UPI/MATHAJI STORE 1 on AU Bank Credit Card x2490 01-11-2026 03:13:54 PM. '
+            'Not you? Call 180012001500 or SMS PBLOCK 2490 to 5676767',
+        20, 'Mathaji Store', '2490', true,
+      ),
+      (
+        'payee missing, so not the bank\'s name either',
+        'INR 450.00 spent on AU Bank Credit Card x2490 01-11-2026 03:13:54 PM. Not you? Call 180012001500',
+        450, null, '2490', true,
+      ),
     ];
 
     for (final (description, body, amount, merchant, hint, isCard) in cases) {
